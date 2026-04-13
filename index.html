@@ -60,10 +60,11 @@
   .msg-avatar{width:26px;height:26px;border-radius:50%;flex-shrink:0;margin-top:3px;display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:500}
   .msg-avatar.ai{background:var(--accent-light);color:var(--accent)}
   .msg-avatar.user{background:var(--user-bubble);color:var(--user-text)}
-  .bubble{padding:11px 15px;border-radius:var(--radius);font-size:14px;line-height:1.8;max-width:74%;word-break:break-word}
+  .bubble{padding:11px 15px;border-radius:var(--radius);font-size:14px;line-height:1.8;max-width:74%;word-break:break-word;position:relative;}
   .bubble.ai{background:var(--white);border:1px solid var(--border);color:var(--text);border-top-left-radius:4px;white-space:normal}
   .bubble.user{background:var(--user-bubble);color:var(--user-text);border-top-right-radius:4px;white-space:pre-wrap}
   .bubble img{max-width:100%;border-radius:8px;display:block;margin-top:6px}
+  
   /* Markdown styles */
   .bubble.ai p{margin:0 0 10px}
   .bubble.ai p:last-child{margin-bottom:0}
@@ -80,12 +81,26 @@
   .bubble.ai th{background:var(--bg);font-weight:500}
   .bubble.ai strong{font-weight:600}
   .bubble.ai a{color:var(--accent);text-decoration:underline}
+
+  /* ── 思考过程 (Reasoning Box) ── */
+  .reasoning-box {margin-bottom:12px; background:var(--bg); border:1px solid var(--border); border-radius:8px; overflow:hidden;}
+  .reasoning-box summary {padding:8px 12px; font-size:12px; color:var(--muted); cursor:pointer; user-select:none; display:flex; align-items:center; gap:6px; outline:none; background:#fdfaf5; transition:background 0.15s;}
+  .reasoning-box summary:hover {background:#f4f0e6;}
+  .reasoning-box summary::-webkit-details-marker {display:none;} /* Hide default arrow */
+  .reasoning-box summary::before {content:'▶'; font-size:10px; transition:transform 0.2s;}
+  .reasoning-box[open] summary::before {transform:rotate(90deg);}
+  .think-icon {font-size:14px;}
+  .think-time {font-size:11px; opacity:0.7; margin-left:auto;}
+  .reasoning-content {padding:12px; font-size:13px; color:var(--muted); border-top:1px solid var(--border); background:var(--bg);}
+  .reasoning-content p {margin:0 0 8px;}
+  .reasoning-content p:last-child {margin:0;}
+
   /* Copy button */
   .msg-wrap.ai:hover .copy-btn{opacity:1}
   .copy-btn{opacity:0;transition:opacity 0.15s;background:var(--bg);border:1px solid var(--border);border-radius:7px;padding:4px 8px;font-size:11px;color:var(--muted);cursor:pointer;align-self:flex-end;margin-bottom:4px;white-space:nowrap;font-family:inherit}
   .copy-btn:hover{background:var(--white);color:var(--text)}
   .copy-btn.copied{color:var(--accent);border-color:var(--accent)}
-  .typing{display:flex;gap:4px;align-items:center;padding:13px 15px}
+  .typing{display:flex;gap:4px;align-items:center;padding:8px 4px}
   .dot{width:6px;height:6px;background:var(--muted);border-radius:50%;animation:bounce 1.2s infinite}
   .dot:nth-child(2){animation-delay:0.2s}.dot:nth-child(3){animation-delay:0.4s}
   @keyframes bounce{0%,60%,100%{transform:translateY(0)}30%{transform:translateY(-6px)}}
@@ -152,15 +167,6 @@
   .param-row .val{font-size:12px;color:var(--muted);width:36px;text-align:right;flex-shrink:0}
   .param-row input[type=number]{width:80px;padding:5px 8px;border:1px solid var(--border);border-radius:7px;font-size:13px;font-family:inherit;outline:none}
   .param-row input[type=number]:focus{border-color:var(--accent)}
-  .toggle-row{display:flex;align-items:center;justify-content:space-between;margin-bottom:12px}
-  .toggle-row label{font-size:13px;color:var(--text)}
-  .toggle-row span{font-size:11px;color:var(--muted)}
-  .toggle{position:relative;width:36px;height:20px;flex-shrink:0}
-  .toggle input{opacity:0;width:0;height:0}
-  .toggle-slider{position:absolute;inset:0;background:var(--border);border-radius:20px;cursor:pointer;transition:0.2s}
-  .toggle-slider:before{content:'';position:absolute;width:14px;height:14px;left:3px;top:3px;background:white;border-radius:50%;transition:0.2s}
-  .toggle input:checked+.toggle-slider{background:var(--accent)}
-  .toggle input:checked+.toggle-slider:before{transform:translateX(16px)}
 
   .processing-msg{font-size:12px;color:var(--muted);max-width:860px;margin:0 auto 6px;padding:0 2px}
   .empty-history{padding:8px 10px;font-size:12px;color:var(--muted)}
@@ -170,7 +176,6 @@
 </head>
 <body>
 
-<!-- Keys & Settings Modal -->
 <div class="modal-bg" id="keyModal" style="display:none">
   <div class="modal-box">
     <h2>API Key 与模型设置</h2>
@@ -182,7 +187,6 @@
       <button class="ptab" onclick="switchTab('deepseek')">DeepSeek</button>
     </div>
 
-    <!-- Claude -->
     <div class="key-section show" id="tab-claude">
       <div class="field-label">Anthropic API Key</div>
       <input class="modal-input" id="key-claude" type="password" placeholder="sk-ant-...">
@@ -190,48 +194,41 @@
       <div class="model-note">申请地址：console.anthropic.com<br>最新模型：Sonnet 4.6（推荐）· Opus 4.6（最强）· Haiku 4.5（最快最便宜）</div>
     </div>
 
-    <!-- OpenAI -->
     <div class="key-section" id="tab-openai">
       <div class="field-label">OpenAI API Key</div>
       <input class="modal-input" id="key-openai" type="password" placeholder="sk-...">
       <div class="key-status" id="st-openai"></div>
-      <div class="model-note">申请地址：platform.openai.com<br>最新模型：GPT-5.4（旗舰）· GPT-5.4 Pro（最强推理）· GPT-5.4 mini（性价比）· GPT-5.3（快速）</div>
+      <div class="model-note">申请地址：platform.openai.com<br>最新模型：GPT-5.4（旗舰）· GPT-5.4 Pro（最强推理）· GPT-5.4 mini（性价比）</div>
     </div>
 
-    <!-- Gemini -->
     <div class="key-section" id="tab-gemini">
       <div class="field-label">Google Gemini API Key</div>
       <input class="modal-input" id="key-gemini" type="password" placeholder="AIza...">
       <div class="key-status" id="st-gemini"></div>
-      <div class="model-note">申请地址：aistudio.google.com（免费额度较多）<br>最新模型：Gemini 3.1 Pro（最强推理）· Gemini 3 Flash（速度/能力平衡）· Gemini 2.5 Flash（稳定快速）</div>
+      <div class="model-note">申请地址：aistudio.google.com（免费额度较多）<br>最新模型：Gemini 3.1 Pro（最强推理）· Gemini 3 Flash（速度/能力平衡）</div>
     </div>
 
-    <!-- DeepSeek -->
     <div class="key-section" id="tab-deepseek">
       <div class="field-label">DeepSeek API Key</div>
       <input class="modal-input" id="key-deepseek" type="password" placeholder="sk-...">
       <div class="key-status" id="st-deepseek"></div>
-      <div class="model-note">申请地址：platform.deepseek.com（国内直连，无需梯子，价格最低）<br>V3 = 快速模式 · R1 = 深度思考模式</div>
+      <div class="model-note">申请地址：platform.deepseek.com（国内直连，价格最低）<br>V3 = 快速模式 · R1 = 深度思考模式</div>
     </div>
 
-    <!-- 通用参数 -->
     <div class="params-section">
       <div class="params-title">模型参数</div>
-
       <div class="param-row">
         <label>温度 Temperature</label>
         <input type="range" min="0" max="2" step="0.1" id="paramTemp" oninput="document.getElementById('tempVal').textContent=this.value">
         <span class="val" id="tempVal">0.7</span>
       </div>
       <div style="font-size:11px;color:var(--muted);margin:-8px 0 14px 112px">0 = 保守精确 · 1 = 均衡 · 2 = 创意发散</div>
-
       <div class="param-row">
         <label>最大回复长度</label>
         <input type="number" id="paramMaxTokens" min="256" max="8000" step="256" value="2000">
         <span style="font-size:12px;color:var(--muted)">tokens</span>
       </div>
     </div>
-
     <button class="modal-btn" onclick="saveKeys()">保存设置</button>
   </div>
 </div>
@@ -274,11 +271,10 @@
           <option value="gemini|gemini-3.1-pro-preview">Gemini 3.1 Pro</option>
           <option value="gemini|gemini-3-flash">Gemini 3 Flash</option>
           <option value="gemini|gemini-2.5-flash">Gemini 2.5 Flash</option>
-          <option value="gemini|gemini-2.5-flash-lite">Gemini 2.5 Flash Lite</option>
         </optgroup>
         <optgroup label="── DeepSeek ──">
           <option value="deepseek|deepseek-chat">DeepSeek V3（快速）</option>
-          <option value="deepseek|deepseek-reasoner">DeepSeek R1（深度思考）</option>
+          <option value="deepseek|deepseek-reasoner" selected>DeepSeek R1（深度思考）</option>
         </optgroup>
       </select>
     </div>
@@ -308,7 +304,7 @@
         <button class="tool-btn" id="searchToggleBtn" style="display:none" onclick="toggleSearch()">🔍 联网</button>
       </div>
     </div>
-    <div class="input-hint" id="inputHint">支持 JPG·PNG·PDF·DOCX·XLSX·PPTX·TXT·CSV·JSON·代码 · 历史自动保存</div>
+    <div class="input-hint" id="inputHint">支持流式打字输出 · DeepSeek R1 思考过程实时渲染 · 支持各类型文件读取</div>
   </div>
 </div>
 
@@ -404,11 +400,11 @@ function onModelChange(){
     sep.style.display='none';btn.style.display='none';searchEnabled=false;
   } else if(provider==='deepseek'){
     sep.style.display='';btn.style.display='';
-    searchEnabled=false; // DeepSeek 不支持真实联网，默认关闭
+    searchEnabled=false;
     btn.className='tool-btn disabled';
     btn.title='DeepSeek API 暂不支持真实联网搜索';
     btn.textContent='🔍 联网（不支持）';
-    btn.onclick=()=>alert('DeepSeek API 目前不支持真实联网搜索。\n如需联网，请切换到 OpenAI 或 Gemini 模型。');
+    btn.onclick=()=>alert('DeepSeek API 目前不支持真实联网搜索。');
   } else {
     sep.style.display='';btn.style.display='';
     btn.className='tool-btn'+(searchEnabled?' on':'');
@@ -486,50 +482,27 @@ function renderAttachments(){
   }).join('');
 }
 
-// ── 对话渲染 ──
-function newChat(){
-  history=[];currentSession=null;pendingItems=[];
-  renderAttachments();
-  document.getElementById('topbarTitle').textContent='新对话';
-  document.getElementById('input').value='';
-  document.getElementById('input').style.height='auto';
-  updateSendBtn();appendWelcome();renderChatList();
-}
-
+// ── UI 渲染核心 ──
 function appendWelcome(){
   document.getElementById('messages').innerHTML=`<div class="welcome" id="welcome">
     <div class="welcome-title">你好，今天需要什么帮助？</div>
-    <div class="welcome-sub">支持 Claude · OpenAI · Gemini · DeepSeek<br>图片 · PDF · Word · Excel · PPT · 历史自动保存</div>
+    <div class="welcome-sub">支持 Claude · OpenAI · Gemini · DeepSeek<br>新增强大特性：打字机流式输出、R1 思考过程实时渲染</div>
     <div class="suggestions">
       <button class="sug-btn" onclick="suggest('帮我写一封给客户的道歉邮件，语气专业但诚恳')">✉️ 帮我写一封客户邮件</button>
-      <button class="sug-btn" onclick="suggest('用简单易懂的话解释一下什么是人工智能')">💡 解释一个复杂概念</button>
+      <button class="sug-btn" onclick="suggest('用简单易懂的话解释一下什么是量子纠缠')">💡 解释一个复杂概念</button>
       <button class="sug-btn" onclick="suggest('帮我列一个这周的工作计划，包括优先级排序')">📋 整理工作计划</button>
-      <button class="sug-btn" onclick="suggest('帮我把这段话翻译成英文：今天天气不错，适合外出')">🌐 中英文翻译</button>
+      <button class="sug-btn" onclick="suggest('请逐步思考：为什么先看到闪电后听到雷声？')">🧠 深度逻辑推理</button>
     </div></div>`;
-}
-
-function renderMsg(role,text){
-  const wrap=document.createElement('div');wrap.className='msg-wrap '+role;
-  const av=document.createElement('div');av.className='msg-avatar '+role;av.textContent=role==='ai'?'AI':'我';
-  const bubble=document.createElement('div');bubble.className='bubble '+role;bubble.textContent=text;
-  wrap.appendChild(av);wrap.appendChild(bubble);
-  document.getElementById('messages').appendChild(wrap);
 }
 
 function renderMarkdown(text){
   const blocks=[];
   let t=text;
-  // 保护 \[...\]（块级公式）
   t=t.replace(/\\\[([\s\S]+?)\\\]/g,(_,m)=>{blocks.push({type:'block',src:m});return `%%LATEX_BLOCK_${blocks.length-1}%%`;});
-  // 保护 \(...\)（行内公式）
   t=t.replace(/\\\((.+?)\\\)/g,(_,m)=>{blocks.push({type:'inline',src:m});return `%%LATEX_INLINE_${blocks.length-1}%%`;});
-  // 保护 $$...$$（块级公式）
   t=t.replace(/\$\$([\s\S]+?)\$\$/g,(_,m)=>{blocks.push({type:'block',src:m});return `%%LATEX_BLOCK_${blocks.length-1}%%`;});
-  // 保护 $...$（行内公式，排除货币符号等误判）
   t=t.replace(/\$([^$\n]{1,200}?)\$/g,(_,m)=>{blocks.push({type:'inline',src:m});return `%%LATEX_INLINE_${blocks.length-1}%%`;});
-  // 渲染 markdown
   let html=marked.parse(t,{breaks:true,gfm:true});
-  // 还原 LaTeX
   html=html.replace(/%%LATEX_BLOCK_(\d+)%%/g,(_,i)=>{
     try{return '<div class="katex-block">'+katex.renderToString(blocks[i].src,{displayMode:true,throwOnError:false})+'</div>';}
     catch{return '<code>'+blocks[i].src+'</code>';}
@@ -539,6 +512,23 @@ function renderMarkdown(text){
     catch{return '<code>'+blocks[i].src+'</code>';}
   });
   return html;
+}
+
+function renderMsg(role,text){
+  const wrap=document.createElement('div');wrap.className='msg-wrap '+role;
+  const av=document.createElement('div');av.className='msg-avatar '+role;av.textContent=role==='ai'?'AI':'我';
+  const bubble=document.createElement('div');bubble.className='bubble '+role;
+  if(role==='ai'){
+    bubble.innerHTML=renderMarkdown(text);
+    const copyBtn=document.createElement('button');
+    copyBtn.className='copy-btn';copyBtn.textContent='复制';
+    copyBtn.onclick=()=>{navigator.clipboard.writeText(text).then(()=>{copyBtn.textContent='已复制 ✓';copyBtn.classList.add('copied');setTimeout(()=>{copyBtn.textContent='复制';copyBtn.classList.remove('copied');},2000);});};
+    wrap.appendChild(av);wrap.appendChild(bubble);wrap.appendChild(copyBtn);
+  }else{
+    bubble.textContent=text;
+    wrap.appendChild(av);wrap.appendChild(bubble);
+  }
+  document.getElementById('messages').appendChild(wrap);
 }
 
 function addMsg(role,text,items){
@@ -556,38 +546,13 @@ function addMsg(role,text,items){
       else{const p=document.createElement('p');p.style.marginTop='6px';p.textContent=text;bubble.appendChild(p);}
     }
   }else{
-    if(role==='ai'){bubble.innerHTML=renderMarkdown(text);}
-    else{bubble.textContent=text;}
+    if(role==='ai') bubble.innerHTML=renderMarkdown(text);
+    else bubble.textContent=text;
   }
-  if(role==='ai'){
-    // 复制按钮
-    const copyBtn=document.createElement('button');
-    copyBtn.className='copy-btn';copyBtn.textContent='复制';
-    copyBtn.onclick=()=>{
-      navigator.clipboard.writeText(text).then(()=>{
-        copyBtn.textContent='已复制 ✓';copyBtn.classList.add('copied');
-        setTimeout(()=>{copyBtn.textContent='复制';copyBtn.classList.remove('copied');},2000);
-      });
-    };
-    wrap.appendChild(av);wrap.appendChild(bubble);wrap.appendChild(copyBtn);
-  }else{
-    wrap.appendChild(av);wrap.appendChild(bubble);
-  }
-  document.getElementById('messages').appendChild(wrap);
-  document.getElementById('messages').scrollTop=99999;
-}
-
-function addTyping(){
-  const w=document.getElementById('welcome');if(w)w.remove();
-  const wrap=document.createElement('div');wrap.className='msg-wrap ai';wrap.id='typing-wrap';
-  const av=document.createElement('div');av.className='msg-avatar ai';av.textContent='AI';
-  const bubble=document.createElement('div');bubble.className='bubble ai';
-  bubble.innerHTML='<div class="typing"><div class="dot"></div><div class="dot"></div><div class="dot"></div></div>';
   wrap.appendChild(av);wrap.appendChild(bubble);
   document.getElementById('messages').appendChild(wrap);
   document.getElementById('messages').scrollTop=99999;
 }
-function removeTyping(){const t=document.getElementById('typing-wrap');if(t)t.remove();}
 
 function updateList(firstMsg){
   if(!currentSession)currentSession={id:'s_'+Date.now(),title:firstMsg.slice(0,16)+(firstMsg.length>16?'...':'')};
@@ -595,10 +560,99 @@ function updateList(firstMsg){
   renderChatList();
 }
 
-// ── 统一消息格式转换 ──
-// history 中每条消息结构：{role, content, _files:[{kind,type,data,text,name}]}
-// _files 只在当前会话内存中存在，不写入 localStorage
+// ── 建立流式 UI 框架 ──
+function createMsgStream(role) {
+  const w = document.getElementById('welcome'); if (w) w.remove();
+  const wrap = document.createElement('div'); wrap.className = 'msg-wrap ' + role;
+  const av = document.createElement('div'); av.className = 'msg-avatar ' + role; av.textContent = 'AI';
+  const bubble = document.createElement('div'); bubble.className = 'bubble ' + role;
 
+  let reasoningBox = null, reasoningContentDiv = null, summary = null;
+  const mainContentDiv = document.createElement('div');
+  mainContentDiv.innerHTML = '<div class="typing"><div class="dot"></div><div class="dot"></div><div class="dot"></div></div>';
+
+  if (role === 'ai') {
+    reasoningBox = document.createElement('details');
+    reasoningBox.className = 'reasoning-box';
+    reasoningBox.style.display = 'none'; // 刚开始隐藏，直到接收到 reasoning 内容
+    reasoningBox.open = true; // 默认展开状态
+
+    summary = document.createElement('summary');
+    summary.innerHTML = '<span class="think-icon">🧠</span> 正在思考过程... <span class="think-time"></span>';
+
+    reasoningContentDiv = document.createElement('div');
+    reasoningContentDiv.className = 'reasoning-content';
+
+    reasoningBox.appendChild(summary);
+    reasoningBox.appendChild(reasoningContentDiv);
+    bubble.appendChild(reasoningBox);
+  }
+
+  bubble.appendChild(mainContentDiv);
+  wrap.appendChild(av); wrap.appendChild(bubble);
+
+  let copyBtn = null;
+  if (role === 'ai') {
+    copyBtn = document.createElement('button');
+    copyBtn.className = 'copy-btn'; copyBtn.textContent = '复制';
+    wrap.appendChild(copyBtn);
+  }
+
+  document.getElementById('messages').appendChild(wrap);
+  document.getElementById('messages').scrollTop = 99999;
+
+  let rawReasoning = '';
+  let rawContent = '';
+  let startTime = Date.now();
+  let isFirstChunk = true;
+
+  return {
+    update: (rDelta, cDelta) => {
+      if (isFirstChunk && (rDelta || cDelta)) {
+        isFirstChunk = false;
+        mainContentDiv.innerHTML = ''; // 清除打字动画
+      }
+      if (rDelta) {
+        rawReasoning += rDelta;
+        reasoningBox.style.display = 'block';
+        reasoningContentDiv.innerHTML = renderMarkdown(rawReasoning);
+        const sec = Math.floor((Date.now() - startTime) / 1000);
+        summary.innerHTML = `<span class="think-icon">🧠</span> 正在思考过程... <span class="think-time">${sec}s</span>`;
+      }
+      if (cDelta) {
+        rawContent += cDelta;
+        mainContentDiv.innerHTML = renderMarkdown(rawContent);
+      }
+      // 保持滚动到底部
+      const messagesDiv = document.getElementById('messages');
+      messagesDiv.scrollTop = messagesDiv.scrollHeight;
+    },
+    error: (errMsg) => {
+      if (isFirstChunk) { isFirstChunk = false; mainContentDiv.innerHTML = ''; }
+      mainContentDiv.innerHTML += `<div style="color:#c0392b;margin-top:10px;font-size:13px">❌ 出错了：${errMsg}</div>`;
+      document.getElementById('messages').scrollTop = 99999;
+    },
+    finish: () => {
+      if (copyBtn) {
+        copyBtn.onclick = () => {
+          navigator.clipboard.writeText(rawContent).then(() => {
+            copyBtn.textContent = '已复制 ✓'; copyBtn.classList.add('copied');
+            setTimeout(() => { copyBtn.textContent = '复制'; copyBtn.classList.remove('copied'); }, 2000);
+          });
+        };
+      }
+      if (reasoningBox && rawReasoning) {
+        reasoningBox.open = false; // 结束后自动折叠思考过程
+        const sec = Math.floor((Date.now() - startTime) / 1000);
+        summary.innerHTML = `<span class="think-icon">🧠</span> 深度思考已完成 <span class="think-time">耗时 ${sec}s</span>`;
+      }
+      if(!rawContent && rawReasoning) return "（模型仅输出了内部思考过程，无正文返回）";
+      return rawContent;
+    }
+  };
+}
+
+// ── API 消息转换 ──
 function toClaudeMessages(messages){
   return messages.map(m=>{
     if(m._files&&m._files.length){
@@ -621,7 +675,7 @@ function toOpenAIMessages(messages){
       const parts=[];
       m._files.forEach(f=>{
         if(f.kind==='image') parts.push({type:'image_url',image_url:{url:`data:${f.type};base64,${f.data}`}});
-        else if(f.kind==='pdf') parts.push({type:'text',text:`【PDF文件：${f.name}（OpenAI 暂不支持直接读取 PDF，以下为文件名提示）】`});
+        else if(f.kind==='pdf') parts.push({type:'text',text:`【PDF文件：${f.name}（该模型暂不支持直接读取PDF结构，以下为名称提示）】`});
         else parts.push({type:'text',text:`【文件：${f.name}】\n${f.text||''}`});
       });
       if(m.content) parts.push({type:'text',text:m.content});
@@ -647,13 +701,12 @@ function toGeminiContents(messages){
 }
 
 function toDeepSeekMessages(messages){
-  // DeepSeek 不支持图片/PDF，文字文件以文本形式传入
   return messages.map(m=>{
     if(m._files&&m._files.length){
       let extra='';
       m._files.forEach(f=>{
-        if(f.kind==='image') extra+=`\n【图片文件：${f.name}（DeepSeek 不支持图片输入）】`;
-        else if(f.kind==='pdf') extra+=`\n【PDF文件：${f.name}（DeepSeek 不支持 PDF 输入）】`;
+        if(f.kind==='image') extra+=`\n【图片：${f.name}（DeepSeek暂不支持图片输入）】`;
+        else if(f.kind==='pdf') extra+=`\n【PDF：${f.name}（DeepSeek暂不支持PDF输入）】`;
         else extra+=`\n【文件：${f.name}】\n${f.text||''}`;
       });
       return {role:m.role,content:(m.content||'')+extra};
@@ -662,74 +715,145 @@ function toDeepSeekMessages(messages){
   });
 }
 
-// ── API 调用 ──
-async function callClaude(model,messages){
-  const msgs=toClaudeMessages(messages);
-  const res=await fetch('https://api.anthropic.com/v1/messages',{method:'POST',headers:{'Content-Type':'application/json','x-api-key':keys.claude,'anthropic-version':'2023-06-01','anthropic-dangerous-direct-browser-access':'true'},body:JSON.stringify({model,max_tokens:params.maxTokens,temperature:params.temperature,system:'你是一个专业、友善的AI助手，用简洁清晰的中文回答问题。',messages:msgs})});
-  const data=await res.json();
-  if(data.error)throw new Error(data.error.message);
-  return data.content?.[0]?.text||'';
+// ── SSE 流式读取工具 ──
+async function fetchSSE(url, options, onMessage) {
+  const res = await fetch(url, options);
+  if (!res.ok) {
+    const errText = await res.text();
+    throw new Error(errText);
+  }
+  const reader = res.body.getReader();
+  const decoder = new TextDecoder();
+  let buffer = '';
+  while (true) {
+    const { done, value } = await reader.read();
+    if (done) break;
+    buffer += decoder.decode(value, { stream: true });
+    const lines = buffer.split('\n');
+    buffer = lines.pop(); // 保留最后一行不完整的字符串
+    for (let line of lines) {
+      if (line.trim() === '') continue;
+      if (line.startsWith('data: ')) {
+        const dataStr = line.slice(6).trim();
+        if (dataStr === '[DONE]') continue;
+        try {
+          onMessage(JSON.parse(dataStr));
+        } catch (e) {
+          // 忽略截断导致的 JSON 解析异常
+        }
+      }
+    }
+  }
 }
 
-async function callOpenAI(model,messages){
-  const body={model,max_tokens:params.maxTokens,temperature:params.temperature,messages:[{role:'system',content:'你是一个专业、友善的AI助手，用简洁清晰的中文回答问题。'},...toOpenAIMessages(messages)]};
-  if(searchEnabled) body.tools=[{type:'web_search_preview'}];
-  const res=await fetch('https://api.openai.com/v1/chat/completions',{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+keys.openai},body:JSON.stringify(body)});
-  const data=await res.json();
-  if(data.error)throw new Error(data.error.message);
-  return data.choices?.[0]?.message?.content||'';
+// ── API 流式调用 ──
+async function callClaudeStream(model, messages, onUpdate) {
+  const msgs = toClaudeMessages(messages);
+  const body = {
+    model, max_tokens: params.maxTokens, temperature: params.temperature,
+    system: '你是一个专业、友善的AI助手，用简洁清晰的中文回答问题。',
+    stream: true, messages: msgs
+  };
+  await fetchSSE('https://api.anthropic.com/v1/messages', {
+    method: 'POST', headers: {
+      'Content-Type': 'application/json', 'x-api-key': keys.claude,
+      'anthropic-version': '2023-06-01', 'anthropic-dangerous-direct-browser-access': 'true'
+    }, body: JSON.stringify(body)
+  }, (data) => {
+    if (data.type === 'content_block_delta' && data.delta && data.delta.text) {
+      onUpdate('', data.delta.text);
+    }
+  });
 }
 
-async function callGemini(model,messages){
-  const body={contents:toGeminiContents(messages),generationConfig:{temperature:params.temperature,maxOutputTokens:params.maxTokens}};
-  if(searchEnabled) body.tools=[{google_search:{}}];
-  const res=await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${keys.gemini}`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});
-  const data=await res.json();
-  if(data.error)throw new Error(data.error.message);
-  return data.candidates?.[0]?.content?.parts?.[0]?.text||'';
+async function callOpenAIStream(model, messages, onUpdate) {
+  const body = {
+    model, max_tokens: params.maxTokens, temperature: params.temperature,
+    stream: true, messages: [{role:'system',content:'你是一个专业、友善的AI助手，用简洁清晰的中文回答问题。'}, ...toOpenAIMessages(messages)]
+  };
+  await fetchSSE('https://api.openai.com/v1/chat/completions', {
+    method: 'POST', headers: {'Content-Type': 'application/json', 'Authorization': 'Bearer ' + keys.openai},
+    body: JSON.stringify(body)
+  }, (data) => {
+    const delta = data.choices?.[0]?.delta;
+    if (delta) onUpdate(delta.reasoning_content || '', delta.content || '');
+  });
 }
 
-async function callDeepSeek(model,messages){
-  const body={model,max_tokens:params.maxTokens,temperature:params.temperature,messages:[{role:'system',content:'你是一个专业、友善的AI助手，用简洁清晰的中文回答问题。'},...toDeepSeekMessages(messages)]};
-  const res=await fetch('https://api.deepseek.com/v1/chat/completions',{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+keys.deepseek},body:JSON.stringify(body)});
-  const data=await res.json();
-  if(data.error)throw new Error(data.error.message);
-  return data.choices?.[0]?.message?.content||'';
+async function callGeminiStream(model, messages, onUpdate) {
+  const body = {
+    contents: toGeminiContents(messages),
+    generationConfig: {temperature: params.temperature, maxOutputTokens: params.maxTokens}
+  };
+  await fetchSSE(`https://generativelanguage.googleapis.com/v1beta/models/${model}:streamGenerateContent?alt=sse&key=${keys.gemini}`, {
+    method: 'POST', headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify(body)
+  }, (data) => {
+    const text = data.candidates?.[0]?.content?.parts?.[0]?.text || '';
+    if (text) onUpdate('', text);
+  });
 }
 
+async function callDeepSeekStream(model, messages, onUpdate) {
+  const body = {
+    model, max_tokens: params.maxTokens, temperature: params.temperature,
+    stream: true, messages: [{role:'system',content:'你是一个专业、友善的AI助手，用简洁清晰的中文回答问题。'}, ...toDeepSeekMessages(messages)]
+  };
+  await fetchSSE('https://api.deepseek.com/chat/completions', {
+    method: 'POST', headers: {'Content-Type': 'application/json', 'Authorization': 'Bearer ' + keys.deepseek},
+    body: JSON.stringify(body)
+  }, (data) => {
+    const delta = data.choices?.[0]?.delta;
+    // DeepSeek R1 会在 delta 中返回 reasoning_content
+    if (delta) onUpdate(delta.reasoning_content || '', delta.content || '');
+  });
+}
+
+// ── 核心发送流控制 ──
 async function send(){
   if(isLoading)return;
   if(!checkKey())return;
   const input=document.getElementById('input');
   const text=input.value.trim();
   if(!text&&!pendingItems.length)return;
-  input.value='';input.style.height='auto';
+  
+  input.value=''; input.style.height='auto';
   document.getElementById('sendBtn').className='send-btn';
   isLoading=true;
-  const items=[...pendingItems];pendingItems=[];renderAttachments();
+  
+  const items=[...pendingItems]; pendingItems=[]; renderAttachments();
+  
+  // 1. 渲染用户消息
   addMsg('user',text,items);
   updateList(text||(items[0]?items[0].name:'文件'));
-  // 把文件数据存进 history（_files 只在内存里，不写 localStorage）
+  
   const entry={role:'user',content:text||'请分析上传的文件'};
   if(items.length) entry._files=items.map(f=>({kind:f.kind,type:f.type||'',data:f.data||'',text:f.text||'',name:f.name,preview:f.preview||''}));
   history.push(entry);
-  addTyping();
+
   const{provider,model}=getProviderModel();
+
+  // 2. 创建并附加 流式接收 UI 面板 (带自动折叠思考框)
+  const streamUI = createMsgStream('ai');
+
   try{
-    let reply='';
-    if(provider==='claude') reply=await callClaude(model,history);
-    else if(provider==='openai') reply=await callOpenAI(model,history);
-    else if(provider==='gemini') reply=await callGemini(model,history);
-    else if(provider==='deepseek') reply=await callDeepSeek(model,history);
-    removeTyping();
-    addMsg('ai',reply);
-    history.push({role:'assistant',content:reply});
-    saveCurrentSession();renderChatList();
+    const onUpdate = (rDelta, cDelta) => streamUI.update(rDelta, cDelta);
+
+    if(provider==='claude') await callClaudeStream(model, history, onUpdate);
+    else if(provider==='openai') await callOpenAIStream(model, history, onUpdate);
+    else if(provider==='gemini') await callGeminiStream(model, history, onUpdate);
+    else if(provider==='deepseek') await callDeepSeekStream(model, history, onUpdate);
+
+    // 3. 接收完成，提取最后的内容存入历史
+    const finalContent = streamUI.finish();
+    history.push({role:'assistant', content:finalContent});
+    saveCurrentSession(); 
+    renderChatList();
   }catch(e){
-    removeTyping();
-    addMsg('ai','出错了：'+e.message+'\n\n请检查：\n1. 梯子是否开启\n2. API Key 是否正确（点左下角「设置 Key」）\n3. 账户是否有余额');
+    // 处理异常
+    streamUI.error(e.message);
   }
-  isLoading=false;document.getElementById('messages').scrollTop=99999;
+  isLoading=false;
 }
 
 init();
