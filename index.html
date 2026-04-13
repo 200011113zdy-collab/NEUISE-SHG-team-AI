@@ -454,8 +454,13 @@ function loadSession(id){
   history=s.messages.map(m=>({role:m.role,content:m.content,reasoning:m.reasoning}));
   document.getElementById('topbarTitle').textContent=s.title;
   document.getElementById('messages').innerHTML='';
-  // 【修复渲染难看/没回复的Bug】使用 addMsg 而不是 renderMsg
-  s.messages.forEach(m=>addMsg(m.role, m.content, null, m.reasoning)); 
+  
+  // 【修复Bug】：将历史记录里的 assistant 映射为前端样式需要的 ai
+  s.messages.forEach(m => {
+    const displayRole = (m.role === 'assistant' || m.role === 'model') ? 'ai' : 'user';
+    addMsg(displayRole, m.content, null, m.reasoning);
+  });
+  
   document.getElementById('messages').scrollTop=99999;
   renderChatList();
 }
