@@ -4,100 +4,156 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>团队 AI 助手</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/mammoth/1.6.0/mammoth.browser.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
 <style>
   *{box-sizing:border-box;margin:0;padding:0}
   :root{
-    --bg:#f7f6f2;
-    --sidebar:#efede8;
-    --white:#ffffff;
-    --border:#e2dfd8;
-    --text:#1a1a18;
-    --muted:#7a7870;
-    --accent:#c96a3b;
-    --accent-light:#fdf0e8;
-    --user-bubble:#1a1a18;
-    --user-text:#f7f6f2;
-    --radius:14px;
+    --bg:#f7f6f2;--sidebar:#efede8;--white:#fff;--border:#e2dfd8;
+    --text:#1a1a18;--muted:#7a7870;--accent:#c96a3b;--accent-light:#fdf0e8;
+    --user-bubble:#1a1a18;--user-text:#f7f6f2;--radius:14px;
   }
   body{font-family:'PingFang SC','Microsoft YaHei',sans-serif;background:var(--bg);color:var(--text);height:100vh;display:flex;overflow:hidden}
-
-  .sidebar{width:220px;min-width:220px;background:var(--sidebar);border-right:1px solid var(--border);display:flex;flex-direction:column;height:100vh}
-  .sidebar-header{padding:20px 18px 12px;border-bottom:1px solid var(--border)}
-  .brand{font-size:15px;font-weight:600;color:var(--text);display:flex;align-items:center;gap:8px}
+  .sidebar{width:230px;min-width:230px;background:var(--sidebar);border-right:1px solid var(--border);display:flex;flex-direction:column;height:100vh}
+  .sidebar-header{padding:18px 16px 12px;border-bottom:1px solid var(--border)}
+  .brand{font-size:15px;font-weight:600;display:flex;align-items:center;gap:8px}
   .brand-dot{width:8px;height:8px;background:var(--accent);border-radius:50%}
-  .sidebar-label{font-size:11px;color:var(--muted);letter-spacing:0.6px;text-transform:uppercase;padding:16px 18px 8px}
-  .new-chat-btn{margin:0 12px 4px;padding:9px 14px;background:transparent;border:1px solid var(--border);border-radius:10px;font-size:13px;color:var(--muted);cursor:pointer;text-align:left;display:flex;align-items:center;gap:8px;transition:all 0.15s}
-  .new-chat-btn:hover{background:var(--white);color:var(--text)}
-  .chat-list{flex:1;overflow-y:auto;padding:0 12px 12px}
-  .chat-item{padding:9px 10px;border-radius:8px;font-size:13px;color:var(--muted);cursor:pointer;transition:all 0.15s;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-bottom:2px}
+  .new-chat-btn{margin:10px 12px 4px;padding:9px 14px;background:var(--white);border:1px solid var(--border);border-radius:10px;font-size:13px;color:var(--text);cursor:pointer;text-align:left;display:flex;align-items:center;gap:8px;transition:all 0.15s;font-family:inherit;width:calc(100% - 24px)}
+  .new-chat-btn:hover{border-color:var(--accent);color:var(--accent)}
+  .new-chat-btn:active{transform:scale(0.98)}
+  .sidebar-label{font-size:11px;color:var(--muted);letter-spacing:0.6px;text-transform:uppercase;padding:12px 16px 6px}
+  .chat-list{flex:1;overflow-y:auto;padding:0 10px 10px}
+  .chat-item{padding:8px 10px;border-radius:8px;font-size:13px;color:var(--muted);cursor:pointer;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-bottom:1px;transition:all 0.15s}
   .chat-item:hover{background:var(--white);color:var(--text)}
-  .chat-item.active{background:var(--white);color:var(--text)}
-  .sidebar-footer{padding:12px;border-top:1px solid var(--border)}
-  .user-info{display:flex;align-items:center;gap:10px;padding:8px 6px;border-radius:8px;cursor:pointer}
-  .user-info:hover{background:var(--white)}
-  .avatar{width:30px;height:30px;background:var(--user-bubble);border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:12px;color:var(--user-text);font-weight:500;flex-shrink:0}
-  .user-name{font-size:13px;font-weight:500}
-  .user-sub{font-size:11px;color:var(--muted)}
-
+  .chat-item.active{background:var(--white);color:var(--text);font-weight:500}
+  .sidebar-footer{padding:10px;border-top:1px solid var(--border)}
+  .settings-row{display:flex;align-items:center;gap:8px;padding:6px 8px;border-radius:8px}
+  .avatar{width:28px;height:28px;background:var(--user-bubble);border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:11px;color:var(--user-text);font-weight:500;flex-shrink:0}
+  .user-name{font-size:13px;font-weight:500;flex:1}
+  .key-btn{padding:4px 8px;font-size:11px;color:var(--muted);background:transparent;border:1px solid var(--border);border-radius:6px;cursor:pointer;font-family:inherit;white-space:nowrap}
+  .key-btn:hover{background:var(--accent-light);color:var(--accent);border-color:var(--accent)}
   .main{flex:1;display:flex;flex-direction:column;height:100vh;min-width:0}
-  .topbar{height:52px;border-bottom:1px solid var(--border);display:flex;align-items:center;padding:0 24px;gap:12px;background:var(--white);flex-shrink:0}
-  .model-badge{background:var(--accent-light);color:var(--accent);font-size:12px;padding:4px 10px;border-radius:20px;font-weight:500}
-  .topbar-title{font-size:14px;color:var(--muted)}
-
-  .messages{flex:1;overflow-y:auto;padding:32px 0;display:flex;flex-direction:column}
+  .topbar{height:52px;border-bottom:1px solid var(--border);display:flex;align-items:center;padding:0 20px;gap:10px;background:var(--white);flex-shrink:0}
+  .topbar-title{font-size:14px;color:var(--muted);flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .model-select-wrap{display:flex;align-items:center;gap:6px;background:var(--bg);border:1px solid var(--border);border-radius:20px;padding:4px 12px 4px 10px;cursor:pointer;transition:all 0.15s}
+  .model-select-wrap:hover{border-color:var(--accent)}
+  .provider-dot{width:7px;height:7px;border-radius:50%;flex-shrink:0}
+  .model-select{background:transparent;border:none;outline:none;font-size:12px;font-weight:500;cursor:pointer;font-family:inherit;color:var(--text);padding:0}
+  .messages{flex:1;overflow-y:auto;padding:28px 0;display:flex;flex-direction:column}
   .messages::-webkit-scrollbar{width:4px}
   .messages::-webkit-scrollbar-thumb{background:var(--border);border-radius:2px}
-
-  .msg-wrap{display:flex;padding:6px 32px;gap:14px;max-width:860px;margin:0 auto;width:100%}
+  .msg-wrap{display:flex;padding:5px 28px;gap:12px;max-width:860px;margin:0 auto;width:100%}
   .msg-wrap.user{flex-direction:row-reverse}
-  .msg-avatar{width:28px;height:28px;border-radius:50%;flex-shrink:0;margin-top:2px;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:500}
+  .msg-avatar{width:26px;height:26px;border-radius:50%;flex-shrink:0;margin-top:3px;display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:500}
   .msg-avatar.ai{background:var(--accent-light);color:var(--accent)}
   .msg-avatar.user{background:var(--user-bubble);color:var(--user-text)}
-  .bubble{padding:12px 16px;border-radius:var(--radius);font-size:14px;line-height:1.8;max-width:72%;word-break:break-word;white-space:pre-wrap}
+  .bubble{padding:11px 15px;border-radius:var(--radius);font-size:14px;line-height:1.8;max-width:74%;word-break:break-word;white-space:pre-wrap}
   .bubble.ai{background:var(--white);border:1px solid var(--border);color:var(--text);border-top-left-radius:4px}
   .bubble.user{background:var(--user-bubble);color:var(--user-text);border-top-right-radius:4px}
-
-  .typing{display:flex;gap:4px;align-items:center;padding:14px 16px}
+  .bubble img{max-width:100%;border-radius:8px;display:block;margin-top:6px}
+  .typing{display:flex;gap:4px;align-items:center;padding:13px 15px}
   .dot{width:6px;height:6px;background:var(--muted);border-radius:50%;animation:bounce 1.2s infinite}
-  .dot:nth-child(2){animation-delay:0.2s}
-  .dot:nth-child(3){animation-delay:0.4s}
+  .dot:nth-child(2){animation-delay:0.2s}.dot:nth-child(3){animation-delay:0.4s}
   @keyframes bounce{0%,60%,100%{transform:translateY(0)}30%{transform:translateY(-6px)}}
-
-  .welcome{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:24px;padding:40px 24px;max-width:640px;margin:0 auto;width:100%}
-  .welcome-title{font-size:26px;font-weight:600;color:var(--text);text-align:center}
-  .welcome-sub{font-size:14px;color:var(--muted);text-align:center;line-height:1.6}
-  .suggestions{display:grid;grid-template-columns:1fr 1fr;gap:10px;width:100%}
-  .sug-btn{padding:14px 16px;background:var(--white);border:1px solid var(--border);border-radius:12px;font-size:13px;color:var(--text);cursor:pointer;text-align:left;transition:all 0.15s;line-height:1.5;font-family:inherit}
+  .welcome{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:22px;padding:40px 24px;max-width:620px;margin:0 auto;width:100%}
+  .welcome-title{font-size:24px;font-weight:600;text-align:center}
+  .welcome-sub{font-size:13px;color:var(--muted);text-align:center;line-height:1.6}
+  .suggestions{display:grid;grid-template-columns:1fr 1fr;gap:8px;width:100%}
+  .sug-btn{padding:12px 14px;background:var(--white);border:1px solid var(--border);border-radius:12px;font-size:13px;color:var(--text);cursor:pointer;text-align:left;transition:all 0.15s;line-height:1.5;font-family:inherit}
   .sug-btn:hover{border-color:var(--accent);background:var(--accent-light)}
-
-  .input-area{padding:16px 24px 20px;border-top:1px solid var(--border);background:var(--white);flex-shrink:0}
-  .input-wrap{max-width:860px;margin:0 auto;background:var(--bg);border:1px solid var(--border);border-radius:16px;display:flex;align-items:flex-end;gap:8px;padding:10px 12px;transition:border-color 0.15s}
-  .input-wrap:focus-within{border-color:#aaa8a0}
+  .input-area{padding:10px 20px 14px;border-top:1px solid var(--border);background:var(--white);flex-shrink:0}
+  .attachments{max-width:860px;margin:0 auto 8px;display:flex;gap:8px;flex-wrap:wrap}
+  .attach-chip{display:flex;align-items:center;gap:6px;padding:5px 8px 5px 10px;background:var(--bg);border:1px solid var(--border);border-radius:8px;font-size:12px;max-width:180px}
+  .attach-chip .fname{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;flex:1}
+  .attach-chip .xbtn,.img-thumb .xbtn{background:none;border:none;cursor:pointer;color:var(--muted);font-size:12px;padding:0 0 0 3px}
+  .img-thumb{position:relative;width:60px;height:60px;flex-shrink:0}
+  .img-thumb img{width:60px;height:60px;object-fit:cover;border-radius:8px;border:1px solid var(--border)}
+  .img-thumb .xbtn{position:absolute;top:-6px;right:-6px;width:17px;height:17px;background:var(--user-bubble);color:var(--user-text);border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:9px}
+  .input-wrap{max-width:860px;margin:0 auto;background:var(--bg);border:1px solid var(--border);border-radius:16px;padding:10px 12px;transition:border-color 0.15s}
+  .input-wrap:focus-within{border-color:#b0ada6}
+  .input-row{display:flex;align-items:flex-end;gap:8px}
   textarea{flex:1;background:transparent;border:none;outline:none;resize:none;font-family:inherit;font-size:14px;color:var(--text);line-height:1.6;max-height:140px;min-height:24px}
   textarea::placeholder{color:var(--muted)}
-  .send-btn{width:34px;height:34px;background:var(--user-bubble);border:none;border-radius:10px;cursor:pointer;display:flex;align-items:center;justify-content:center;flex-shrink:0;transition:opacity 0.15s;opacity:0.35}
+  .toolbar{display:flex;align-items:center;gap:2px;padding-top:7px;border-top:1px solid var(--border);margin-top:7px;flex-wrap:wrap}
+  .tool-btn{padding:4px 8px;background:transparent;border:none;border-radius:6px;cursor:pointer;font-size:12px;color:var(--muted);display:flex;align-items:center;gap:4px;font-family:inherit;transition:all 0.15s}
+  .tool-btn:hover{background:var(--border);color:var(--text)}
+  .tool-sep{width:1px;height:14px;background:var(--border);margin:0 3px}
+  .send-btn{width:32px;height:32px;background:var(--user-bubble);border:none;border-radius:9px;cursor:pointer;display:flex;align-items:center;justify-content:center;flex-shrink:0;transition:opacity 0.15s;opacity:0.3}
   .send-btn.active{opacity:1}
-  .input-hint{text-align:center;font-size:11px;color:var(--muted);margin-top:10px;max-width:860px;margin-left:auto;margin-right:auto}
-
-  .api-modal{position:fixed;inset:0;background:rgba(0,0,0,0.4);display:flex;align-items:center;justify-content:center;z-index:100}
-  .api-box{background:var(--white);border-radius:18px;padding:32px;width:420px;max-width:90vw}
-  .api-box h2{font-size:18px;font-weight:600;margin-bottom:8px}
-  .api-box p{font-size:13px;color:var(--muted);margin-bottom:20px;line-height:1.6}
-  .api-input{width:100%;padding:10px 14px;border:1px solid var(--border);border-radius:10px;font-size:13px;font-family:inherit;outline:none;margin-bottom:12px}
-  .api-input:focus{border-color:var(--accent)}
-  .api-btn{width:100%;padding:11px;background:var(--user-bubble);color:var(--user-text);border:none;border-radius:10px;font-size:14px;font-weight:500;cursor:pointer;font-family:inherit}
-  .api-btn:hover{opacity:0.85}
+  .input-hint{text-align:center;font-size:11px;color:var(--muted);margin-top:7px;max-width:860px;margin-left:auto;margin-right:auto}
+  input[type=file]{display:none}
+  .pw-screen{position:fixed;inset:0;background:var(--bg);display:flex;align-items:center;justify-content:center;z-index:200}
+  .pw-box{background:var(--white);border:1px solid var(--border);border-radius:20px;padding:36px;width:360px;max-width:90vw;text-align:center}
+  .pw-logo{width:44px;height:44px;background:var(--accent-light);border-radius:12px;display:flex;align-items:center;justify-content:center;margin:0 auto 16px;font-size:20px}
+  .pw-title{font-size:18px;font-weight:600;margin-bottom:6px}
+  .pw-sub{font-size:13px;color:var(--muted);margin-bottom:24px}
+  .pw-input{width:100%;padding:11px 14px;border:1px solid var(--border);border-radius:10px;font-size:14px;font-family:inherit;outline:none;text-align:center;letter-spacing:2px;margin-bottom:10px}
+  .pw-input:focus{border-color:var(--accent)}
+  .pw-input.shake{animation:shake 0.3s}
+  @keyframes shake{0%,100%{transform:translateX(0)}25%{transform:translateX(-8px)}75%{transform:translateX(8px)}}
+  .pw-btn{width:100%;padding:11px;background:var(--user-bubble);color:var(--user-text);border:none;border-radius:10px;font-size:14px;font-weight:500;cursor:pointer;font-family:inherit}
+  .pw-btn:hover{opacity:0.85}
+  .pw-error{font-size:12px;color:#c0392b;margin-top:8px;min-height:18px}
+  .modal-bg{position:fixed;inset:0;background:rgba(0,0,0,0.45);display:flex;align-items:center;justify-content:center;z-index:100}
+  .modal-box{background:var(--white);border-radius:18px;padding:28px;width:460px;max-width:92vw}
+  .modal-box h2{font-size:17px;font-weight:600;margin-bottom:6px}
+  .modal-box p{font-size:13px;color:var(--muted);margin-bottom:18px;line-height:1.6}
+  .provider-tabs{display:flex;gap:6px;margin-bottom:18px;background:var(--bg);padding:4px;border-radius:10px}
+  .ptab{flex:1;padding:7px;border:none;border-radius:7px;font-size:13px;cursor:pointer;font-family:inherit;background:transparent;color:var(--muted);transition:all 0.15s}
+  .ptab.active{background:var(--white);color:var(--text);font-weight:500;box-shadow:0 1px 3px rgba(0,0,0,0.08)}
+  .key-section{display:none}
+  .key-section.show{display:block}
+  .key-label{font-size:12px;color:var(--muted);margin-bottom:6px}
+  .modal-input{width:100%;padding:9px 13px;border:1px solid var(--border);border-radius:9px;font-size:13px;font-family:inherit;outline:none;margin-bottom:10px}
+  .modal-input:focus{border-color:var(--accent)}
+  .key-status{font-size:12px;padding:3px 0 10px;color:var(--muted)}
+  .key-status.ok{color:#3a7d44}
+  .modal-btn{width:100%;padding:10px;background:var(--user-bubble);color:var(--user-text);border:none;border-radius:9px;font-size:14px;font-weight:500;cursor:pointer;font-family:inherit}
+  .modal-btn:hover{opacity:0.85}
+  .processing-msg{font-size:12px;color:var(--muted);max-width:860px;margin:0 auto 6px;padding:0 2px}
 </style>
 </head>
 <body>
 
-<!-- API Key 弹窗 -->
-<div class="api-modal" id="apiModal">
-  <div class="api-box">
-    <h2>输入 API Key</h2>
-    <p>请输入你的 Anthropic API Key 以开始使用。Key 只存在你的浏览器中，不会上传到任何服务器。</p>
-    <input class="api-input" id="apiKeyInput" type="password" placeholder="sk-ant-..." />
-    <button class="api-btn" onclick="saveKey()">开始使用</button>
+<!-- 密码验证页 -->
+<div class="pw-screen" id="pwScreen">
+  <div class="pw-box">
+    <div class="pw-logo">🔒</div>
+    <div class="pw-title">团队 AI 助手</div>
+    <div class="pw-sub">请输入访问密码</div>
+    <input class="pw-input" id="pwInput" type="password" placeholder="输入密码" onkeydown="if(event.key==='Enter')checkPw()">
+    <button class="pw-btn" onclick="checkPw()">进入</button>
+    <div class="pw-error" id="pwError"></div>
+  </div>
+</div>
+
+<!-- Keys Modal -->
+<div class="modal-bg" id="keyModal" style="display:none">
+  <div class="modal-box">
+    <h2>API Key 设置</h2>
+    <p>填写你想使用的 AI 服务的 Key，至少填一个。Key 只保存在你的浏览器里。</p>
+    <div class="provider-tabs">
+      <button class="ptab active" onclick="switchTab('claude')">Claude</button>
+      <button class="ptab" onclick="switchTab('openai')">OpenAI</button>
+      <button class="ptab" onclick="switchTab('deepseek')">DeepSeek</button>
+    </div>
+    <div class="key-section show" id="tab-claude">
+      <div class="key-label">Anthropic API Key</div>
+      <input class="modal-input" id="key-claude" type="password" placeholder="sk-ant-...">
+      <div class="key-status" id="st-claude"></div>
+    </div>
+    <div class="key-section" id="tab-openai">
+      <div class="key-label">OpenAI API Key</div>
+      <input class="modal-input" id="key-openai" type="password" placeholder="sk-...">
+      <div class="key-status" id="st-openai"></div>
+    </div>
+    <div class="key-section" id="tab-deepseek">
+      <div class="key-label">DeepSeek API Key</div>
+      <input class="modal-input" id="key-deepseek" type="password" placeholder="sk-...">
+      <div class="key-status" id="st-deepseek"></div>
+    </div>
+    <button class="modal-btn" onclick="saveKeys()">保存</button>
   </div>
 </div>
 
@@ -105,32 +161,49 @@
   <div class="sidebar-header">
     <div class="brand"><div class="brand-dot"></div>团队 AI 助手</div>
   </div>
-  <div class="sidebar-label">对话</div>
   <button class="new-chat-btn" onclick="newChat()">
     <svg width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
     新对话
   </button>
-  <div class="chat-list" id="chatList"></div>
+  <div class="sidebar-label">历史对话</div>
+  <div class="chat-list" id="chatList"><div style="padding:8px 10px;font-size:12px;color:var(--muted)">暂无对话</div></div>
   <div class="sidebar-footer">
-    <div class="user-info">
+    <div class="settings-row">
       <div class="avatar">我</div>
-      <div>
-        <div class="user-name">团队成员</div>
-        <div class="user-sub" id="keyStatus">未配置 Key</div>
-      </div>
+      <div class="user-name">团队成员</div>
+      <button class="key-btn" onclick="openKeys()">⚙ 设置 Key</button>
     </div>
   </div>
 </div>
 
 <div class="main">
   <div class="topbar">
-    <div class="topbar-title">新对话</div>
-    <div class="model-badge">Claude Sonnet 4.6</div>
+    <div class="topbar-title" id="topbarTitle">新对话</div>
+    <div class="model-select-wrap">
+      <div class="provider-dot" id="providerDot" style="background:#c96a3b"></div>
+      <select class="model-select" id="modelSelect" onchange="onModelChange()">
+        <optgroup label="Claude (Anthropic)">
+          <option value="claude|claude-sonnet-4-20250514">Claude Sonnet 4.6</option>
+          <option value="claude|claude-opus-4-20250514">Claude Opus 4.6</option>
+          <option value="claude|claude-haiku-4-5-20251001">Claude Haiku 4.5</option>
+        </optgroup>
+        <optgroup label="OpenAI">
+          <option value="openai|gpt-4o">GPT-4o</option>
+          <option value="openai|gpt-4o-mini">GPT-4o mini</option>
+          <option value="openai|o3-mini">o3-mini</option>
+        </optgroup>
+        <optgroup label="DeepSeek">
+          <option value="deepseek|deepseek-chat">DeepSeek V3</option>
+          <option value="deepseek|deepseek-reasoner">DeepSeek R1</option>
+        </optgroup>
+      </select>
+    </div>
   </div>
+
   <div class="messages" id="messages">
     <div class="welcome" id="welcome">
       <div class="welcome-title">你好，今天需要什么帮助？</div>
-      <div class="welcome-sub">基于 Claude Sonnet 4.6 · 团队共用 · 开梯子即可访问</div>
+      <div class="welcome-sub">支持 Claude · OpenAI · DeepSeek · 图片 · PDF · Word · Excel · PPT</div>
       <div class="suggestions">
         <button class="sug-btn" onclick="suggest('帮我写一封给客户的道歉邮件，语气专业但诚恳')">✉️ 帮我写一封客户邮件</button>
         <button class="sug-btn" onclick="suggest('用简单易懂的话解释一下什么是人工智能')">💡 解释一个复杂概念</button>
@@ -139,71 +212,174 @@
       </div>
     </div>
   </div>
+
   <div class="input-area">
+    <div class="processing-msg" id="procMsg"></div>
+    <div class="attachments" id="attachments"></div>
     <div class="input-wrap">
-      <textarea id="input" placeholder="输入问题，按 Enter 发送..." rows="1" onkeydown="handleKey(event)" oninput="handleInput(this)"></textarea>
-      <button class="send-btn" id="sendBtn" onclick="send()">
-        <svg width="15" height="15" fill="none" stroke="white" stroke-width="2.5" viewBox="0 0 24 24"><line x1="12" y1="19" x2="12" y2="5"/><polyline points="5 12 12 5 19 12"/></svg>
-      </button>
+      <div class="input-row">
+        <textarea id="input" placeholder="输入问题，按 Enter 发送..." rows="1" onkeydown="handleKey(event)" oninput="handleInput(this)"></textarea>
+        <button class="send-btn" id="sendBtn" onclick="send()">
+          <svg width="14" height="14" fill="none" stroke="white" stroke-width="2.5" viewBox="0 0 24 24"><line x1="12" y1="19" x2="12" y2="5"/><polyline points="5 12 12 5 19 12"/></svg>
+        </button>
+      </div>
+      <div class="toolbar">
+        <button class="tool-btn" onclick="document.getElementById('imgInput').click()">🖼️ 图片</button>
+        <button class="tool-btn" onclick="document.getElementById('pdfInput').click()">📄 PDF</button>
+        <button class="tool-btn" onclick="document.getElementById('wordInput').click()">📝 Word</button>
+        <button class="tool-btn" onclick="document.getElementById('excelInput').click()">📊 Excel</button>
+        <button class="tool-btn" onclick="document.getElementById('pptInput').click()">📑 PPT</button>
+        <div class="tool-sep"></div>
+        <button class="tool-btn" onclick="document.getElementById('txtInput').click()">📃 文本/代码</button>
+      </div>
     </div>
-    <div class="input-hint">AI 可能出错，重要信息请自行核实</div>
+    <div class="input-hint">支持 JPG·PNG·PDF·DOCX·XLSX·PPTX·TXT·CSV·JSON·代码文件</div>
   </div>
 </div>
 
+<input type="file" id="imgInput" accept="image/*" multiple onchange="handleFiles(this.files,'image')">
+<input type="file" id="pdfInput" accept=".pdf" multiple onchange="handleFiles(this.files,'pdf')">
+<input type="file" id="wordInput" accept=".docx,.doc" multiple onchange="handleFiles(this.files,'word')">
+<input type="file" id="excelInput" accept=".xlsx,.xls,.csv" multiple onchange="handleFiles(this.files,'excel')">
+<input type="file" id="pptInput" accept=".pptx" multiple onchange="handleFiles(this.files,'ppt')">
+<input type="file" id="txtInput" accept=".txt,.md,.json,.csv,.js,.ts,.py,.java,.c,.cpp,.html,.css,.xml,.yaml,.yml,.sh,.sql" multiple onchange="handleFiles(this.files,'text')">
+
 <script>
-let history = [], sessions = [], currentSession = null, isLoading = false;
-let apiKey = localStorage.getItem('team_ai_key') || '';
+// ====== 修改这里的密码 ======
+const ACCESS_PASSWORD = 'team2024';
+// ============================
 
-function init(){
-  if(apiKey){ document.getElementById('apiModal').style.display='none'; document.getElementById('keyStatus').textContent='已配置'; }
-}
-init();
-
-function saveKey(){
-  const k = document.getElementById('apiKeyInput').value.trim();
-  if(!k){ alert('请输入 API Key'); return; }
-  apiKey = k;
-  localStorage.setItem('team_ai_key', k);
-  document.getElementById('apiModal').style.display='none';
-  document.getElementById('keyStatus').textContent='已配置';
-}
-
-function handleInput(el){
-  el.style.height='auto';
-  el.style.height=Math.min(el.scrollHeight,140)+'px';
-  document.getElementById('sendBtn').className='send-btn'+(el.value.trim()?' active':'');
+function checkPw(){
+  const val=document.getElementById('pwInput').value;
+  if(val===ACCESS_PASSWORD){
+    sessionStorage.setItem('pw_ok','1');
+    document.getElementById('pwScreen').style.display='none';
+  } else {
+    document.getElementById('pwError').textContent='密码错误，请重试';
+    const inp=document.getElementById('pwInput');
+    inp.classList.remove('shake');
+    void inp.offsetWidth;
+    inp.classList.add('shake');
+    inp.value='';
+    inp.focus();
+  }
 }
 
-function handleKey(e){ if(e.key==='Enter'&&!e.shiftKey){e.preventDefault();send();} }
+// 已通过验证则直接跳过
+if(sessionStorage.getItem('pw_ok')==='1'){
+  document.getElementById('pwScreen').style.display='none';
+}
 
-function suggest(text){ document.getElementById('input').value=text; handleInput(document.getElementById('input')); send(); }
+const PROVIDER_COLORS={claude:'#c96a3b',openai:'#19c37d',deepseek:'#4d6bfe'};
+let history=[],sessions=[],currentSession=null,isLoading=false,pendingItems=[];
+let keys={claude:localStorage.getItem('key_claude')||'',openai:localStorage.getItem('key_openai')||'',deepseek:localStorage.getItem('key_deepseek')||''};
+
+function getProviderModel(){const v=document.getElementById('modelSelect').value;const[p,m]=v.split('|');return{provider:p,model:m};}
+
+function onModelChange(){
+  const{provider}=getProviderModel();
+  document.getElementById('providerDot').style.background=PROVIDER_COLORS[provider]||'#888';
+}
+
+function openKeys(){
+  ['claude','openai','deepseek'].forEach(p=>{
+    document.getElementById('key-'+p).value=keys[p]||'';
+    document.getElementById('st-'+p).textContent=keys[p]?'✓ 已配置':'未配置';
+    document.getElementById('st-'+p).className='key-status'+(keys[p]?' ok':'');
+  });
+  document.getElementById('keyModal').style.display='flex';
+}
+
+function switchTab(p){
+  document.querySelectorAll('.ptab').forEach((t,i)=>t.className='ptab'+((['claude','openai','deepseek'][i]===p)?' active':''));
+  document.querySelectorAll('.key-section').forEach(s=>s.className='key-section');
+  document.getElementById('tab-'+p).className='key-section show';
+}
+
+function saveKeys(){
+  ['claude','openai','deepseek'].forEach(p=>{
+    const v=document.getElementById('key-'+p).value.trim();
+    if(v){keys[p]=v;localStorage.setItem('key_'+p,v);}
+  });
+  document.getElementById('keyModal').style.display='none';
+}
+
+function checkKey(){
+  const{provider}=getProviderModel();
+  if(!keys[provider]){openKeys();switchTab(provider);return false;}
+  return true;
+}
+
+function handleInput(el){el.style.height='auto';el.style.height=Math.min(el.scrollHeight,140)+'px';updateSendBtn();}
+function updateSendBtn(){document.getElementById('sendBtn').className='send-btn'+((document.getElementById('input').value.trim()||pendingItems.length)?' active':'');}
+function handleKey(e){if(e.key==='Enter'&&!e.shiftKey){e.preventDefault();send();}}
+function suggest(text){document.getElementById('input').value=text;handleInput(document.getElementById('input'));send();}
+function setProc(m){document.getElementById('procMsg').textContent=m||'';}
+
+const ICONS={image:'🖼️',pdf:'📄',word:'📝',excel:'📊',ppt:'📑',text:'📃'};
+
+async function handleFiles(files,kind){
+  for(const f of Array.from(files)){
+    setProc('正在处理 '+f.name+'...');
+    try{
+      if(kind==='image') await new Promise((res,rej)=>{const r=new FileReader();r.onload=e=>{pendingItems.push({kind,type:f.type,data:e.target.result.split(',')[1],preview:e.target.result,name:f.name});res();};r.onerror=rej;r.readAsDataURL(f);});
+      else if(kind==='pdf') await new Promise((res,rej)=>{const r=new FileReader();r.onload=e=>{pendingItems.push({kind,type:'application/pdf',data:e.target.result.split(',')[1],name:f.name});res();};r.onerror=rej;r.readAsDataURL(f);});
+      else if(kind==='word') await new Promise((res,rej)=>{const r=new FileReader();r.onload=e=>{mammoth.extractRawText({arrayBuffer:e.target.result}).then(x=>{pendingItems.push({kind,text:x.value,name:f.name});res();}).catch(rej);};r.onerror=rej;r.readAsArrayBuffer(f);});
+      else if(kind==='excel') await new Promise((res,rej)=>{const r=new FileReader();r.onload=e=>{try{const wb=XLSX.read(e.target.result,{type:'array'});let t='';wb.SheetNames.forEach(n=>{t+=`【${n}】\n${XLSX.utils.sheet_to_csv(wb.Sheets[n])}\n\n`;});pendingItems.push({kind,text:t.trim(),name:f.name});res();}catch(err){rej(err);}};r.onerror=rej;r.readAsArrayBuffer(f);});
+      else if(kind==='ppt') await new Promise((res,rej)=>{const r=new FileReader();r.onload=async e=>{try{const zip=await JSZip.loadAsync(e.target.result);const sf=Object.keys(zip.files).filter(x=>x.match(/ppt\/slides\/slide\d+\.xml$/)).sort();let t='';for(let i=0;i<sf.length;i++){const xml=await zip.files[sf[i]].async('string');const plain=xml.replace(/<[^>]+>/g,' ').replace(/\s+/g,' ').trim();if(plain)t+=`【第${i+1}页】\n${plain}\n\n`;}pendingItems.push({kind,text:t.trim()||'未能提取文字',name:f.name});res();}catch(err){rej(err);}};r.onerror=rej;r.readAsArrayBuffer(f);});
+      else if(kind==='text') await new Promise((res,rej)=>{const r=new FileReader();r.onload=e=>{pendingItems.push({kind,text:e.target.result,name:f.name});res();};r.onerror=rej;r.readAsText(f,'utf-8');});
+    }catch(e){alert('处理失败：'+f.name);}
+  }
+  setProc('');renderAttachments();updateSendBtn();
+  ['imgInput','pdfInput','wordInput','excelInput','pptInput','txtInput'].forEach(id=>document.getElementById(id).value='');
+}
+
+function removeItem(i){pendingItems.splice(i,1);renderAttachments();updateSendBtn();}
+function renderAttachments(){
+  document.getElementById('attachments').innerHTML=pendingItems.map((item,i)=>{
+    if(item.kind==='image') return `<div class="img-thumb"><img src="${item.preview}"><button class="xbtn" onclick="removeItem(${i})">✕</button></div>`;
+    return `<div class="attach-chip">${ICONS[item.kind]} <span class="fname">${item.name}</span><button class="xbtn" onclick="removeItem(${i})">✕</button></div>`;
+  }).join('');
+}
 
 function newChat(){
-  history=[];currentSession=null;
-  const msgs=document.getElementById('messages');
-  msgs.innerHTML='';
-  const w=document.createElement('div');w.className='welcome';w.id='welcome';
-  w.innerHTML=`<div class="welcome-title">你好，今天需要什么帮助？</div>
-    <div class="welcome-sub">基于 Claude Sonnet 4.6 · 团队共用 · 开梯子即可访问</div>
+  history=[];currentSession=null;pendingItems=[];
+  renderAttachments();
+  document.getElementById('messages').innerHTML='';
+  appendWelcome();
+  document.getElementById('topbarTitle').textContent='新对话';
+  document.getElementById('input').value='';
+  document.getElementById('input').style.height='auto';
+  updateSendBtn();
+}
+
+function appendWelcome(){
+  document.getElementById('messages').innerHTML=`<div class="welcome" id="welcome">
+    <div class="welcome-title">你好，今天需要什么帮助？</div>
+    <div class="welcome-sub">支持 Claude · OpenAI · DeepSeek · 图片 · PDF · Word · Excel · PPT</div>
     <div class="suggestions">
       <button class="sug-btn" onclick="suggest('帮我写一封给客户的道歉邮件，语气专业但诚恳')">✉️ 帮我写一封客户邮件</button>
       <button class="sug-btn" onclick="suggest('用简单易懂的话解释一下什么是人工智能')">💡 解释一个复杂概念</button>
       <button class="sug-btn" onclick="suggest('帮我列一个这周的工作计划，包括优先级排序')">📋 整理工作计划</button>
       <button class="sug-btn" onclick="suggest('帮我把这段话翻译成英文：今天天气不错，适合外出')">🌐 中英文翻译</button>
-    </div>`;
-  msgs.appendChild(w);
+    </div></div>`;
 }
 
-function addMsg(role, text){
+function addMsg(role,text,items){
   const w=document.getElementById('welcome');if(w)w.remove();
   const wrap=document.createElement('div');wrap.className='msg-wrap '+role;
   const av=document.createElement('div');av.className='msg-avatar '+role;av.textContent=role==='ai'?'AI':'我';
-  const bubble=document.createElement('div');bubble.className='bubble '+role;bubble.textContent=text;
-  if(role==='ai'){wrap.appendChild(av);wrap.appendChild(bubble);}
-  else{wrap.appendChild(av);wrap.appendChild(bubble);}
+  const bubble=document.createElement('div');bubble.className='bubble '+role;
+  if(items&&items.length){
+    items.forEach(item=>{
+      if(item.kind==='image'){const img=document.createElement('img');img.src=item.preview;bubble.appendChild(img);}
+      else{const c=document.createElement('span');c.style.cssText='display:inline-flex;align-items:center;gap:4px;padding:2px 7px;background:rgba(255,255,255,0.15);border-radius:5px;font-size:11px;margin:0 4px 4px 0';c.textContent=ICONS[item.kind]+' '+item.name;bubble.appendChild(c);}
+    });
+    if(text){const p=document.createElement('p');p.style.marginTop='6px';p.textContent=text;bubble.appendChild(p);}
+  }else{bubble.textContent=text;}
+  wrap.appendChild(av);wrap.appendChild(bubble);
   document.getElementById('messages').appendChild(wrap);
   document.getElementById('messages').scrollTop=99999;
-  return bubble;
 }
 
 function addTyping(){
@@ -216,42 +392,71 @@ function addTyping(){
   document.getElementById('messages').appendChild(wrap);
   document.getElementById('messages').scrollTop=99999;
 }
-
-function removeTyping(){ const t=document.getElementById('typing-wrap');if(t)t.remove(); }
+function removeTyping(){const t=document.getElementById('typing-wrap');if(t)t.remove();}
 
 function updateList(firstMsg){
-  if(!currentSession){currentSession={id:Date.now(),title:firstMsg.slice(0,18)+(firstMsg.length>18?'...':'')};sessions.unshift(currentSession);}
-  document.getElementById('chatList').innerHTML=sessions.map(s=>`<div class="chat-item${s.id===currentSession.id?' active':''}">${s.title}</div>`).join('');
+  if(!currentSession){currentSession={id:Date.now(),title:firstMsg.slice(0,16)+(firstMsg.length>16?'...':'')};sessions.unshift(currentSession);}
+  document.getElementById('chatList').innerHTML=sessions.map(s=>`<div class="chat-item${s.id===currentSession.id?' active':''}" onclick="">${s.title}</div>`).join('');
+  document.getElementById('topbarTitle').textContent=currentSession.title;
+}
+
+async function callClaude(model,messages,items){
+  const contentParts=[];
+  items.forEach(item=>{
+    if(item.kind==='image') contentParts.push({type:'image',source:{type:'base64',media_type:item.type,data:item.data}});
+    else if(item.kind==='pdf') contentParts.push({type:'document',source:{type:'base64',media_type:'application/pdf',data:item.data}});
+    else contentParts.push({type:'text',text:`【${item.name}】\n${item.text||''}`});
+  });
+  const lastUser=messages[messages.length-1];
+  if(contentParts.length>0){if(lastUser.content)contentParts.push({type:'text',text:lastUser.content});messages[messages.length-1]={role:'user',content:contentParts};}
+  const res=await fetch('https://api.anthropic.com/v1/messages',{method:'POST',headers:{'Content-Type':'application/json','x-api-key':keys.claude,'anthropic-version':'2023-06-01','anthropic-dangerous-direct-browser-access':'true'},body:JSON.stringify({model,max_tokens:2000,system:'你是一个专业、友善的AI助手，用简洁清晰的中文回答问题。',messages})});
+  const data=await res.json();
+  if(data.error)throw new Error(data.error.message);
+  return data.content?.[0]?.text||'';
+}
+
+async function callOpenAI(model,messages){
+  const res=await fetch('https://api.openai.com/v1/chat/completions',{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+keys.openai},body:JSON.stringify({model,messages:[{role:'system',content:'你是一个专业、友善的AI助手，用简洁清晰的中文回答问题。'},...messages]})});
+  const data=await res.json();
+  if(data.error)throw new Error(data.error.message);
+  return data.choices?.[0]?.message?.content||'';
+}
+
+async function callDeepSeek(model,messages){
+  const res=await fetch('https://api.deepseek.com/v1/chat/completions',{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+keys.deepseek},body:JSON.stringify({model,messages:[{role:'system',content:'你是一个专业、友善的AI助手，用简洁清晰的中文回答问题。'},...messages]})});
+  const data=await res.json();
+  if(data.error)throw new Error(data.error.message);
+  return data.choices?.[0]?.message?.content||'';
 }
 
 async function send(){
   if(isLoading)return;
-  if(!apiKey){ document.getElementById('apiModal').style.display='flex'; return; }
+  if(!checkKey())return;
   const input=document.getElementById('input');
-  const text=input.value.trim();if(!text)return;
+  const text=input.value.trim();
+  if(!text&&!pendingItems.length)return;
   input.value='';input.style.height='auto';
   document.getElementById('sendBtn').className='send-btn';
   isLoading=true;
-  addMsg('user',text);updateList(text);
-  history.push({role:'user',content:text});
+  const items=[...pendingItems];pendingItems=[];renderAttachments();
+  addMsg('user',text,items);
+  updateList(text||(items[0]?items[0].name:'文件'));
+  history.push({role:'user',content:text||'请分析上传的文件'});
   addTyping();
+  const{provider,model}=getProviderModel();
   try{
-    const res=await fetch('https://api.anthropic.com/v1/messages',{
-      method:'POST',
-      headers:{'Content-Type':'application/json','x-api-key':apiKey,'anthropic-version':'2023-06-01','anthropic-dangerous-direct-browser-access':'true'},
-      body:JSON.stringify({model:'claude-sonnet-4-20250514',max_tokens:1500,system:'你是一个专业、友善的AI助手，用简洁清晰的中文回答问题。',messages:history})
-    });
-    const data=await res.json();
+    let reply='';
+    if(provider==='claude') reply=await callClaude(model,[...history],items);
+    else if(provider==='openai') reply=await callOpenAI(model,[...history]);
+    else if(provider==='deepseek') reply=await callDeepSeek(model,[...history]);
     removeTyping();
-    if(data.error){addMsg('ai','错误：'+data.error.message);isLoading=false;return;}
-    const reply=data.content?.[0]?.text||'抱歉，发生了错误。';
     addMsg('ai',reply);
     history.push({role:'assistant',content:reply});
   }catch(e){
     removeTyping();
-    addMsg('ai','连接失败，请检查：\n1. 梯子是否开启\n2. API Key 是否正确');
+    addMsg('ai','出错了：'+e.message+'\n\n请检查：\n1. 梯子是否开启\n2. API Key 是否正确（点右上角设置）');
   }
-  isLoading=false;
+  isLoading=false;document.getElementById('messages').scrollTop=99999;
 }
 </script>
 </body>
