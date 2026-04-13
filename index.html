@@ -3,10 +3,14 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>团队 AI 助手</title>
+<title>AI（测试）</title>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/mammoth/1.6.0/mammoth.browser.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/marked/9.1.6/marked.min.js"></script>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.9/katex.min.css">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.9/katex.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.9/contrib/auto-render.min.js"></script>
 <style>
   *{box-sizing:border-box;margin:0;padding:0}
   :root{
@@ -15,6 +19,8 @@
     --user-bubble:#1a1a18;--user-text:#f7f6f2;--radius:14px;
   }
   body{font-family:'PingFang SC','Microsoft YaHei',sans-serif;background:var(--bg);color:var(--text);height:100vh;display:flex;overflow:hidden}
+
+  /* ── Sidebar ── */
   .sidebar{width:230px;min-width:230px;background:var(--sidebar);border-right:1px solid var(--border);display:flex;flex-direction:column;height:100vh}
   .sidebar-header{padding:18px 16px 12px;border-bottom:1px solid var(--border)}
   .brand{font-size:15px;font-weight:600;display:flex;align-items:center;gap:8px}
@@ -32,18 +38,20 @@
   .chat-item:hover .chat-del{opacity:1}
   .chat-del:hover{background:var(--border);color:#c0392b}
   .sidebar-footer{padding:10px;border-top:1px solid var(--border)}
-  .settings-row{display:flex;align-items:center;gap:8px;padding:6px 8px;border-radius:8px}
-  .avatar{width:28px;height:28px;background:var(--user-bubble);border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:11px;color:var(--user-text);font-weight:500;flex-shrink:0}
-  .user-name{font-size:13px;font-weight:500;flex:1}
-  .key-btn{padding:4px 8px;font-size:11px;color:var(--muted);background:transparent;border:1px solid var(--border);border-radius:6px;cursor:pointer;font-family:inherit;white-space:nowrap}
-  .key-btn:hover{background:var(--accent-light);color:var(--accent);border-color:var(--accent)}
+  .footer-btns{display:flex;gap:6px;padding:4px 4px}
+  .footer-btn{flex:1;padding:7px 6px;font-size:11px;color:var(--muted);background:transparent;border:1px solid var(--border);border-radius:7px;cursor:pointer;font-family:inherit;text-align:center;transition:all 0.15s}
+  .footer-btn:hover{background:var(--accent-light);color:var(--accent);border-color:var(--accent)}
+
+  /* ── Main ── */
   .main{flex:1;display:flex;flex-direction:column;height:100vh;min-width:0}
   .topbar{height:52px;border-bottom:1px solid var(--border);display:flex;align-items:center;padding:0 20px;gap:10px;background:var(--white);flex-shrink:0}
   .topbar-title{font-size:14px;color:var(--muted);flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-  .model-select-wrap{display:flex;align-items:center;gap:6px;background:var(--bg);border:1px solid var(--border);border-radius:20px;padding:4px 12px 4px 10px;cursor:pointer;transition:all 0.15s}
+  .model-select-wrap{display:flex;align-items:center;gap:6px;background:var(--bg);border:1px solid var(--border);border-radius:20px;padding:4px 12px 4px 10px;transition:all 0.15s}
   .model-select-wrap:hover{border-color:var(--accent)}
   .provider-dot{width:7px;height:7px;border-radius:50%;flex-shrink:0}
   .model-select{background:transparent;border:none;outline:none;font-size:12px;font-weight:500;cursor:pointer;font-family:inherit;color:var(--text);padding:0}
+
+  /* ── Messages ── */
   .messages{flex:1;overflow-y:auto;padding:28px 0;display:flex;flex-direction:column}
   .messages::-webkit-scrollbar{width:4px}
   .messages::-webkit-scrollbar-thumb{background:var(--border);border-radius:2px}
@@ -52,20 +60,45 @@
   .msg-avatar{width:26px;height:26px;border-radius:50%;flex-shrink:0;margin-top:3px;display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:500}
   .msg-avatar.ai{background:var(--accent-light);color:var(--accent)}
   .msg-avatar.user{background:var(--user-bubble);color:var(--user-text)}
-  .bubble{padding:11px 15px;border-radius:var(--radius);font-size:14px;line-height:1.8;max-width:74%;word-break:break-word;white-space:pre-wrap}
-  .bubble.ai{background:var(--white);border:1px solid var(--border);color:var(--text);border-top-left-radius:4px}
-  .bubble.user{background:var(--user-bubble);color:var(--user-text);border-top-right-radius:4px}
+  .bubble{padding:11px 15px;border-radius:var(--radius);font-size:14px;line-height:1.8;max-width:74%;word-break:break-word}
+  .bubble.ai{background:var(--white);border:1px solid var(--border);color:var(--text);border-top-left-radius:4px;white-space:normal}
+  .bubble.user{background:var(--user-bubble);color:var(--user-text);border-top-right-radius:4px;white-space:pre-wrap}
   .bubble img{max-width:100%;border-radius:8px;display:block;margin-top:6px}
+  /* Markdown styles */
+  .bubble.ai p{margin:0 0 10px}
+  .bubble.ai p:last-child{margin-bottom:0}
+  .bubble.ai h1,.bubble.ai h2,.bubble.ai h3{font-weight:600;margin:16px 0 8px;line-height:1.4}
+  .bubble.ai h1{font-size:17px}.bubble.ai h2{font-size:15px}.bubble.ai h3{font-size:14px}
+  .bubble.ai ul,.bubble.ai ol{padding-left:20px;margin:6px 0 10px}
+  .bubble.ai li{margin-bottom:4px}
+  .bubble.ai code{background:#f0ede8;padding:1px 5px;border-radius:4px;font-size:13px;font-family:'Menlo','Consolas',monospace}
+  .bubble.ai pre{background:#f0ede8;border-radius:8px;padding:12px 14px;overflow-x:auto;margin:10px 0;position:relative}
+  .bubble.ai pre code{background:none;padding:0;font-size:13px;line-height:1.6}
+  .bubble.ai blockquote{border-left:3px solid var(--border);padding-left:12px;color:var(--muted);margin:8px 0}
+  .bubble.ai table{border-collapse:collapse;width:100%;margin:10px 0;font-size:13px}
+  .bubble.ai th,.bubble.ai td{border:1px solid var(--border);padding:6px 10px;text-align:left}
+  .bubble.ai th{background:var(--bg);font-weight:500}
+  .bubble.ai strong{font-weight:600}
+  .bubble.ai a{color:var(--accent);text-decoration:underline}
+  /* Copy button */
+  .msg-wrap.ai:hover .copy-btn{opacity:1}
+  .copy-btn{opacity:0;transition:opacity 0.15s;background:var(--bg);border:1px solid var(--border);border-radius:7px;padding:4px 8px;font-size:11px;color:var(--muted);cursor:pointer;align-self:flex-end;margin-bottom:4px;white-space:nowrap;font-family:inherit}
+  .copy-btn:hover{background:var(--white);color:var(--text)}
+  .copy-btn.copied{color:var(--accent);border-color:var(--accent)}
   .typing{display:flex;gap:4px;align-items:center;padding:13px 15px}
   .dot{width:6px;height:6px;background:var(--muted);border-radius:50%;animation:bounce 1.2s infinite}
   .dot:nth-child(2){animation-delay:0.2s}.dot:nth-child(3){animation-delay:0.4s}
   @keyframes bounce{0%,60%,100%{transform:translateY(0)}30%{transform:translateY(-6px)}}
+
+  /* ── Welcome ── */
   .welcome{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:22px;padding:40px 24px;max-width:620px;margin:0 auto;width:100%}
   .welcome-title{font-size:24px;font-weight:600;text-align:center}
   .welcome-sub{font-size:13px;color:var(--muted);text-align:center;line-height:1.6}
   .suggestions{display:grid;grid-template-columns:1fr 1fr;gap:8px;width:100%}
   .sug-btn{padding:12px 14px;background:var(--white);border:1px solid var(--border);border-radius:12px;font-size:13px;color:var(--text);cursor:pointer;text-align:left;transition:all 0.15s;line-height:1.5;font-family:inherit}
   .sug-btn:hover{border-color:var(--accent);background:var(--accent-light)}
+
+  /* ── Input ── */
   .input-area{padding:10px 20px 14px;border-top:1px solid var(--border);background:var(--white);flex-shrink:0}
   .attachments{max-width:860px;margin:0 auto 8px;display:flex;gap:8px;flex-wrap:wrap}
   .attach-chip{display:flex;align-items:center;gap:6px;padding:5px 8px 5px 10px;background:var(--bg);border:1px solid var(--border);border-radius:8px;font-size:12px;max-width:180px}
@@ -82,13 +115,16 @@
   .toolbar{display:flex;align-items:center;gap:2px;padding-top:7px;border-top:1px solid var(--border);margin-top:7px;flex-wrap:wrap}
   .tool-btn{padding:4px 8px;background:transparent;border:none;border-radius:6px;cursor:pointer;font-size:12px;color:var(--muted);display:flex;align-items:center;gap:4px;font-family:inherit;transition:all 0.15s}
   .tool-btn:hover{background:var(--border);color:var(--text)}
+  .tool-btn.on{background:var(--accent-light);color:var(--accent)}
   .tool-sep{width:1px;height:14px;background:var(--border);margin:0 3px}
   .send-btn{width:32px;height:32px;background:var(--user-bubble);border:none;border-radius:9px;cursor:pointer;display:flex;align-items:center;justify-content:center;flex-shrink:0;transition:opacity 0.15s;opacity:0.3}
   .send-btn.active{opacity:1}
   .input-hint{text-align:center;font-size:11px;color:var(--muted);margin-top:7px;max-width:860px;margin-left:auto;margin-right:auto}
   input[type=file]{display:none}
+
+  /* ── Modals ── */
   .modal-bg{position:fixed;inset:0;background:rgba(0,0,0,0.45);display:flex;align-items:center;justify-content:center;z-index:100}
-  .modal-box{background:var(--white);border-radius:18px;padding:28px;width:460px;max-width:92vw}
+  .modal-box{background:var(--white);border-radius:18px;padding:28px;width:480px;max-width:94vw;max-height:90vh;overflow-y:auto}
   .modal-box h2{font-size:17px;font-weight:600;margin-bottom:6px}
   .modal-box p{font-size:13px;color:var(--muted);margin-bottom:18px;line-height:1.6}
   .provider-tabs{display:flex;gap:6px;margin-bottom:18px;background:var(--bg);padding:4px;border-radius:10px}
@@ -96,45 +132,116 @@
   .ptab.active{background:var(--white);color:var(--text);font-weight:500;box-shadow:0 1px 3px rgba(0,0,0,0.08)}
   .key-section{display:none}
   .key-section.show{display:block}
-  .key-label{font-size:12px;color:var(--muted);margin-bottom:6px}
-  .modal-input{width:100%;padding:9px 13px;border:1px solid var(--border);border-radius:9px;font-size:13px;font-family:inherit;outline:none;margin-bottom:10px}
+  .field-label{font-size:12px;color:var(--muted);margin-bottom:5px;margin-top:12px}
+  .field-label:first-child{margin-top:0}
+  .modal-input{width:100%;padding:9px 13px;border:1px solid var(--border);border-radius:9px;font-size:13px;font-family:inherit;outline:none;margin-bottom:4px}
   .modal-input:focus{border-color:var(--accent)}
-  .key-status{font-size:12px;padding:3px 0 10px;color:var(--muted)}
+  .key-status{font-size:12px;padding:2px 0 8px;color:var(--muted)}
   .key-status.ok{color:#3a7d44}
-  .modal-btn{width:100%;padding:10px;background:var(--user-bubble);color:var(--user-text);border:none;border-radius:9px;font-size:14px;font-weight:500;cursor:pointer;font-family:inherit}
+  .modal-btn{width:100%;padding:10px;background:var(--user-bubble);color:var(--user-text);border:none;border-radius:9px;font-size:14px;font-weight:500;cursor:pointer;font-family:inherit;margin-top:8px}
   .modal-btn:hover{opacity:0.85}
+
+  /* ── Params Panel ── */
+  .params-section{border-top:1px solid var(--border);margin-top:16px;padding-top:16px}
+  .params-title{font-size:12px;font-weight:500;color:var(--muted);margin-bottom:12px;text-transform:uppercase;letter-spacing:0.5px}
+  .param-row{display:flex;align-items:center;gap:12px;margin-bottom:14px}
+  .param-row label{font-size:13px;color:var(--text);width:100px;flex-shrink:0}
+  .param-row input[type=range]{flex:1;accent-color:var(--accent)}
+  .param-row .val{font-size:12px;color:var(--muted);width:36px;text-align:right;flex-shrink:0}
+  .param-row input[type=number]{width:80px;padding:5px 8px;border:1px solid var(--border);border-radius:7px;font-size:13px;font-family:inherit;outline:none}
+  .param-row input[type=number]:focus{border-color:var(--accent)}
+  .toggle-row{display:flex;align-items:center;justify-content:space-between;margin-bottom:12px}
+  .toggle-row label{font-size:13px;color:var(--text)}
+  .toggle-row span{font-size:11px;color:var(--muted)}
+  .toggle{position:relative;width:36px;height:20px;flex-shrink:0}
+  .toggle input{opacity:0;width:0;height:0}
+  .toggle-slider{position:absolute;inset:0;background:var(--border);border-radius:20px;cursor:pointer;transition:0.2s}
+  .toggle-slider:before{content:'';position:absolute;width:14px;height:14px;left:3px;top:3px;background:white;border-radius:50%;transition:0.2s}
+  .toggle input:checked+.toggle-slider{background:var(--accent)}
+  .toggle input:checked+.toggle-slider:before{transform:translateX(16px)}
+
   .processing-msg{font-size:12px;color:var(--muted);max-width:860px;margin:0 auto 6px;padding:0 2px}
   .empty-history{padding:8px 10px;font-size:12px;color:var(--muted)}
+  .model-note{font-size:11px;color:var(--muted);margin-top:4px;line-height:1.5;padding:6px 8px;background:var(--bg);border-radius:6px}
+  .katex-block{overflow-x:auto;padding:6px 0;text-align:center}
 </style>
 </head>
 <body>
 
-<!-- Keys Modal -->
+<!-- Keys & Settings Modal -->
 <div class="modal-bg" id="keyModal" style="display:none">
   <div class="modal-box">
-    <h2>API Key 设置</h2>
-    <p>填写你想使用的 AI 服务的 Key，至少填一个。Key 只保存在你的浏览器里。</p>
+    <h2>API Key 与模型设置</h2>
+    <p>填写你想使用的 AI 服务的 Key。Key 只保存在你的浏览器里，不会上传任何服务器。</p>
     <div class="provider-tabs">
       <button class="ptab active" onclick="switchTab('claude')">Claude</button>
       <button class="ptab" onclick="switchTab('openai')">OpenAI</button>
+      <button class="ptab" onclick="switchTab('gemini')">Gemini</button>
       <button class="ptab" onclick="switchTab('deepseek')">DeepSeek</button>
     </div>
+
+    <!-- Claude -->
     <div class="key-section show" id="tab-claude">
-      <div class="key-label">Anthropic API Key</div>
+      <div class="field-label">Anthropic API Key</div>
       <input class="modal-input" id="key-claude" type="password" placeholder="sk-ant-...">
       <div class="key-status" id="st-claude"></div>
+      <div class="model-note">申请地址：console.anthropic.com<br>最新模型：Sonnet 4.6（推荐）· Opus 4.6（最强）· Haiku 4.5（最快最便宜）</div>
     </div>
+
+    <!-- OpenAI -->
     <div class="key-section" id="tab-openai">
-      <div class="key-label">OpenAI API Key</div>
+      <div class="field-label">OpenAI API Key</div>
       <input class="modal-input" id="key-openai" type="password" placeholder="sk-...">
       <div class="key-status" id="st-openai"></div>
+      <div class="model-note">申请地址：platform.openai.com<br>最新模型：GPT-5.4（旗舰）· GPT-5.4 Pro（最强推理）· GPT-5.4 mini（性价比）· GPT-5.3（快速）</div>
     </div>
+
+    <!-- Gemini -->
+    <div class="key-section" id="tab-gemini">
+      <div class="field-label">Google Gemini API Key</div>
+      <input class="modal-input" id="key-gemini" type="password" placeholder="AIza...">
+      <div class="key-status" id="st-gemini"></div>
+      <div class="model-note">申请地址：aistudio.google.com（免费额度较多）<br>最新模型：Gemini 3.1 Pro（最强推理）· Gemini 3 Flash（速度/能力平衡）· Gemini 2.5 Flash（稳定快速）</div>
+    </div>
+
+    <!-- DeepSeek -->
     <div class="key-section" id="tab-deepseek">
-      <div class="key-label">DeepSeek API Key</div>
+      <div class="field-label">DeepSeek API Key</div>
       <input class="modal-input" id="key-deepseek" type="password" placeholder="sk-...">
       <div class="key-status" id="st-deepseek"></div>
+      <div class="model-note">申请地址：platform.deepseek.com（国内直连，无需梯子，价格最低）<br>V3 = 快速模式 · R1 = 深度思考模式</div>
     </div>
-    <button class="modal-btn" onclick="saveKeys()">保存</button>
+
+    <!-- 通用参数 -->
+    <div class="params-section">
+      <div class="params-title">模型参数</div>
+
+      <div class="param-row">
+        <label>温度 Temperature</label>
+        <input type="range" min="0" max="2" step="0.1" id="paramTemp" oninput="document.getElementById('tempVal').textContent=this.value">
+        <span class="val" id="tempVal">0.7</span>
+      </div>
+      <div style="font-size:11px;color:var(--muted);margin:-8px 0 14px 112px">0 = 保守精确 · 1 = 均衡 · 2 = 创意发散</div>
+
+      <div class="param-row">
+        <label>最大回复长度</label>
+        <input type="number" id="paramMaxTokens" min="256" max="8000" step="256" value="2000">
+        <span style="font-size:12px;color:var(--muted)">tokens</span>
+      </div>
+
+      <div class="toggle-row">
+        <div>
+          <label>DeepSeek 联网搜索</label>
+          <div><span>仅对 DeepSeek 模型有效</span></div>
+        </div>
+        <label class="toggle">
+          <input type="checkbox" id="deepseekSearch">
+          <span class="toggle-slider"></span>
+        </label>
+      </div>
+    </div>
+
+    <button class="modal-btn" onclick="saveKeys()">保存设置</button>
   </div>
 </div>
 
@@ -149,10 +256,8 @@
   <div class="sidebar-label">历史对话</div>
   <div class="chat-list" id="chatList"></div>
   <div class="sidebar-footer">
-    <div class="settings-row">
-      <div class="avatar">我</div>
-      <div class="user-name">团队成员</div>
-      <button class="key-btn" onclick="openKeys()">⚙ 设置 Key</button>
+    <div class="footer-btns">
+      <button class="footer-btn" onclick="openKeys()">⚙ 设置 Key 与参数</button>
     </div>
   </div>
 </div>
@@ -163,19 +268,26 @@
     <div class="model-select-wrap">
       <div class="provider-dot" id="providerDot" style="background:#c96a3b"></div>
       <select class="model-select" id="modelSelect" onchange="onModelChange()">
-        <optgroup label="Claude (Anthropic)">
+        <optgroup label="── Claude (Anthropic) ──">
           <option value="claude|claude-sonnet-4-20250514">Claude Sonnet 4.6</option>
           <option value="claude|claude-opus-4-20250514">Claude Opus 4.6</option>
           <option value="claude|claude-haiku-4-5-20251001">Claude Haiku 4.5</option>
         </optgroup>
-        <optgroup label="OpenAI">
-          <option value="openai|gpt-4o">GPT-4o</option>
-          <option value="openai|gpt-4o-mini">GPT-4o mini</option>
-          <option value="openai|o3-mini">o3-mini</option>
+        <optgroup label="── OpenAI (ChatGPT) ──">
+          <option value="openai|gpt-5.4">GPT-5.4</option>
+          <option value="openai|gpt-5.4-pro">GPT-5.4 Pro</option>
+          <option value="openai|gpt-5.4-mini">GPT-5.4 mini</option>
+          <option value="openai|gpt-5.3">GPT-5.3</option>
         </optgroup>
-        <optgroup label="DeepSeek">
-          <option value="deepseek|deepseek-chat">DeepSeek V3</option>
-          <option value="deepseek|deepseek-reasoner">DeepSeek R1</option>
+        <optgroup label="── Google Gemini ──">
+          <option value="gemini|gemini-3.1-pro-preview">Gemini 3.1 Pro</option>
+          <option value="gemini|gemini-3-flash">Gemini 3 Flash</option>
+          <option value="gemini|gemini-2.5-flash">Gemini 2.5 Flash</option>
+          <option value="gemini|gemini-2.5-flash-lite">Gemini 2.5 Flash Lite</option>
+        </optgroup>
+        <optgroup label="── DeepSeek ──">
+          <option value="deepseek|deepseek-chat">DeepSeek V3（快速）</option>
+          <option value="deepseek|deepseek-reasoner">DeepSeek R1（深度思考）</option>
         </optgroup>
       </select>
     </div>
@@ -201,9 +313,11 @@
         <button class="tool-btn" onclick="document.getElementById('pptInput').click()">📑 PPT</button>
         <div class="tool-sep"></div>
         <button class="tool-btn" onclick="document.getElementById('txtInput').click()">📃 文本/代码</button>
+        <div class="tool-sep" id="searchSep" style="display:none"></div>
+        <button class="tool-btn" id="searchToggleBtn" style="display:none" onclick="toggleSearch()">🔍 联网</button>
       </div>
     </div>
-    <div class="input-hint">支持 JPG·PNG·PDF·DOCX·XLSX·PPTX·TXT·CSV·JSON·代码文件 · 历史对话自动保存在本浏览器</div>
+    <div class="input-hint" id="inputHint">支持 JPG·PNG·PDF·DOCX·XLSX·PPTX·TXT·CSV·JSON·代码 · 历史自动保存</div>
   </div>
 </div>
 
@@ -215,39 +329,48 @@
 <input type="file" id="txtInput" accept=".txt,.md,.json,.csv,.js,.ts,.py,.java,.c,.cpp,.html,.css,.xml,.yaml,.yml,.sh,.sql" multiple onchange="handleFiles(this.files,'text')">
 
 <script>
-const PROVIDER_COLORS={claude:'#c96a3b',openai:'#19c37d',deepseek:'#4d6bfe'};
+// ── 配置 ──
+const PROVIDER_COLORS={claude:'#c96a3b',openai:'#19c37d',gemini:'#4285f4',deepseek:'#4d6bfe'};
 const ICONS={image:'🖼️',pdf:'📄',word:'📝',excel:'📊',ppt:'📑',text:'📃'};
-const STORAGE_KEY='team_ai_sessions';
+const STORAGE_KEY='team_ai_v7_sessions';
 const MAX_SESSIONS=50;
 
 let history=[],currentSession=null,isLoading=false,pendingItems=[];
-let keys={claude:localStorage.getItem('key_claude')||'',openai:localStorage.getItem('key_openai')||'',deepseek:localStorage.getItem('key_deepseek')||''};
+let searchEnabled=false;
 
-// ── 历史对话存储 ──
-function loadSessions(){
-  try{return JSON.parse(localStorage.getItem(STORAGE_KEY))||[];}
-  catch{return [];}
-}
-function saveSessions(sessions){
-  try{localStorage.setItem(STORAGE_KEY,JSON.stringify(sessions.slice(0,MAX_SESSIONS)));}
-  catch(e){console.warn('存储空间不足，清理旧对话');
-    const trimmed=sessions.slice(0,10);
-    localStorage.setItem(STORAGE_KEY,JSON.stringify(trimmed));
-  }
-}
+let keys={
+  claude:localStorage.getItem('key_claude')||'',
+  openai:localStorage.getItem('key_openai')||'',
+  gemini:localStorage.getItem('key_gemini')||'',
+  deepseek:localStorage.getItem('key_deepseek')||''
+};
+let params={
+  temperature:parseFloat(localStorage.getItem('p_temp')||'0.7'),
+  maxTokens:parseInt(localStorage.getItem('p_maxtokens')||'2000'),
+  deepseekSearch:localStorage.getItem('p_dssearch')==='1'
+};
+
+// ── 历史存储 ──
+function loadSessions(){try{return JSON.parse(localStorage.getItem(STORAGE_KEY))||[];}catch{return [];}}
+function saveSessions(s){try{localStorage.setItem(STORAGE_KEY,JSON.stringify(s.slice(0,MAX_SESSIONS)));}catch{localStorage.setItem(STORAGE_KEY,JSON.stringify(s.slice(0,10)));}}
 function saveCurrentSession(){
   if(!currentSession)return;
   const sessions=loadSessions();
   const idx=sessions.findIndex(s=>s.id===currentSession.id);
-  const data={id:currentSession.id,title:currentSession.title,messages:history.map(m=>({role:m.role,content:typeof m.content==='string'?m.content:'[包含文件]'})),updated:Date.now()};
+  const data={id:currentSession.id,title:currentSession.title,messages:history.map(m=>({role:m.role,content:typeof m.content==='string'?m.content:'[含文件内容]'})),updated:Date.now()};
   if(idx>=0)sessions[idx]=data;else sessions.unshift(data);
   saveSessions(sessions);
 }
 
 // ── 初始化 ──
 function init(){
+  document.getElementById('paramTemp').value=params.temperature;
+  document.getElementById('tempVal').textContent=params.temperature;
+  document.getElementById('paramMaxTokens').value=params.maxTokens;
+  document.getElementById('deepseekSearch').checked=params.deepseekSearch;
   renderChatList();
   appendWelcome();
+  onModelChange();
 }
 
 function renderChatList(){
@@ -262,8 +385,7 @@ function renderChatList(){
 }
 
 function loadSession(id){
-  const sessions=loadSessions();
-  const s=sessions.find(x=>x.id===id);
+  const s=loadSessions().find(x=>x.id===id);
   if(!s)return;
   currentSession={id:s.id,title:s.title};
   history=s.messages.map(m=>({role:m.role,content:m.content}));
@@ -276,37 +398,64 @@ function loadSession(id){
 
 function delSession(e,id){
   e.stopPropagation();
-  const sessions=loadSessions().filter(s=>s.id!==id);
-  saveSessions(sessions);
-  if(currentSession&&currentSession.id===id){
-    currentSession=null;history=[];
-    appendWelcome();
-    document.getElementById('topbarTitle').textContent='新对话';
-  }
+  saveSessions(loadSessions().filter(s=>s.id!==id));
+  if(currentSession&&currentSession.id===id){currentSession=null;history=[];appendWelcome();document.getElementById('topbarTitle').textContent='新对话';}
   renderChatList();
 }
 
 // ── 模型 & Key ──
 function getProviderModel(){const v=document.getElementById('modelSelect').value;const[p,m]=v.split('|');return{provider:p,model:m};}
-function onModelChange(){const{provider}=getProviderModel();document.getElementById('providerDot').style.background=PROVIDER_COLORS[provider]||'#888';}
+
+function onModelChange(){
+  const{provider,model}=getProviderModel();
+  document.getElementById('providerDot').style.background=PROVIDER_COLORS[provider]||'#888';
+  const isDS=provider==='deepseek';
+  document.getElementById('searchSep').style.display=isDS?'':'none';
+  document.getElementById('searchToggleBtn').style.display=isDS?'':'none';
+  // 更新联网按钮状态
+  if(isDS){
+    document.getElementById('searchToggleBtn').className='tool-btn'+(searchEnabled?' on':'');
+    document.getElementById('searchToggleBtn').textContent=searchEnabled?'🔍 联网中':'🔍 联网';
+  }
+}
+
+function toggleSearch(){
+  searchEnabled=!searchEnabled;
+  const btn=document.getElementById('searchToggleBtn');
+  btn.className='tool-btn'+(searchEnabled?' on':'');
+  btn.textContent=searchEnabled?'🔍 联网中':'🔍 联网';
+}
 
 function openKeys(){
-  ['claude','openai','deepseek'].forEach(p=>{
+  ['claude','openai','gemini','deepseek'].forEach(p=>{
     document.getElementById('key-'+p).value=keys[p]||'';
     document.getElementById('st-'+p).textContent=keys[p]?'✓ 已配置':'未配置';
     document.getElementById('st-'+p).className='key-status'+(keys[p]?' ok':'');
   });
+  document.getElementById('paramTemp').value=params.temperature;
+  document.getElementById('tempVal').textContent=params.temperature;
+  document.getElementById('paramMaxTokens').value=params.maxTokens;
+  document.getElementById('deepseekSearch').checked=params.deepseekSearch;
   document.getElementById('keyModal').style.display='flex';
 }
+
 function switchTab(p){
-  document.querySelectorAll('.ptab').forEach((t,i)=>t.className='ptab'+((['claude','openai','deepseek'][i]===p)?' active':''));
+  document.querySelectorAll('.ptab').forEach((t,i)=>t.className='ptab'+(['claude','openai','gemini','deepseek'][i]===p?' active':''));
   document.querySelectorAll('.key-section').forEach(s=>s.className='key-section');
   document.getElementById('tab-'+p).className='key-section show';
 }
+
 function saveKeys(){
-  ['claude','openai','deepseek'].forEach(p=>{const v=document.getElementById('key-'+p).value.trim();if(v){keys[p]=v;localStorage.setItem('key_'+p,v);}});
+  ['claude','openai','gemini','deepseek'].forEach(p=>{const v=document.getElementById('key-'+p).value.trim();if(v){keys[p]=v;localStorage.setItem('key_'+p,v);}});
+  params.temperature=parseFloat(document.getElementById('paramTemp').value);
+  params.maxTokens=parseInt(document.getElementById('paramMaxTokens').value)||2000;
+  params.deepseekSearch=document.getElementById('deepseekSearch').checked;
+  localStorage.setItem('p_temp',params.temperature);
+  localStorage.setItem('p_maxtokens',params.maxTokens);
+  localStorage.setItem('p_dssearch',params.deepseekSearch?'1':'0');
   document.getElementById('keyModal').style.display='none';
 }
+
 function checkKey(){const{provider}=getProviderModel();if(!keys[provider]){openKeys();switchTab(provider);return false;}return true;}
 
 // ── 输入 ──
@@ -348,15 +497,13 @@ function newChat(){
   document.getElementById('topbarTitle').textContent='新对话';
   document.getElementById('input').value='';
   document.getElementById('input').style.height='auto';
-  updateSendBtn();
-  appendWelcome();
-  renderChatList();
+  updateSendBtn();appendWelcome();renderChatList();
 }
 
 function appendWelcome(){
   document.getElementById('messages').innerHTML=`<div class="welcome" id="welcome">
     <div class="welcome-title">你好，今天需要什么帮助？</div>
-    <div class="welcome-sub">支持 Claude · OpenAI · DeepSeek · 图片 · PDF · Word · Excel · PPT<br>历史对话仅保存在本地</div>
+    <div class="welcome-sub">支持 Claude · OpenAI · Gemini · DeepSeek<br>图片 · PDF · Word · Excel · PPT · 历史自动保存</div>
     <div class="suggestions">
       <button class="sug-btn" onclick="suggest('帮我写一封给客户的道歉邮件，语气专业但诚恳')">✉️ 帮我写一封客户邮件</button>
       <button class="sug-btn" onclick="suggest('用简单易懂的话解释一下什么是人工智能')">💡 解释一个复杂概念</button>
@@ -368,10 +515,31 @@ function appendWelcome(){
 function renderMsg(role,text){
   const wrap=document.createElement('div');wrap.className='msg-wrap '+role;
   const av=document.createElement('div');av.className='msg-avatar '+role;av.textContent=role==='ai'?'AI':'我';
-  const bubble=document.createElement('div');bubble.className='bubble '+role;
-  bubble.textContent=text;
+  const bubble=document.createElement('div');bubble.className='bubble '+role;bubble.textContent=text;
   wrap.appendChild(av);wrap.appendChild(bubble);
   document.getElementById('messages').appendChild(wrap);
+}
+
+function renderMarkdown(text){
+  // 先保护 LaTeX 块，防止被 marked 破坏
+  const blocks=[];
+  let t=text;
+  // 保护 $$...$$
+  t=t.replace(/\$\$([\s\S]+?)\$\$/g,(_,m)=>{blocks.push({type:'block',src:m});return `%%LATEX_BLOCK_${blocks.length-1}%%`;});
+  // 保护 $...$
+  t=t.replace(/\$([^$\n]+?)\$/g,(_,m)=>{blocks.push({type:'inline',src:m});return `%%LATEX_INLINE_${blocks.length-1}%%`;});
+  // 渲染 markdown
+  let html=marked.parse(t,{breaks:true,gfm:true});
+  // 还原 LaTeX
+  html=html.replace(/%%LATEX_BLOCK_(\d+)%%/g,(_,i)=>{
+    try{return '<div class="katex-block">'+katex.renderToString(blocks[i].src,{displayMode:true,throwOnError:false})+'</div>';}
+    catch{return '$$'+blocks[i].src+'$$';}
+  });
+  html=html.replace(/%%LATEX_INLINE_(\d+)%%/g,(_,i)=>{
+    try{return katex.renderToString(blocks[i].src,{displayMode:false,throwOnError:false});}
+    catch{return '$'+blocks[i].src+'$';}
+  });
+  return html;
 }
 
 function addMsg(role,text,items){
@@ -384,9 +552,28 @@ function addMsg(role,text,items){
       if(item.kind==='image'){const img=document.createElement('img');img.src=item.preview;bubble.appendChild(img);}
       else{const c=document.createElement('span');c.style.cssText='display:inline-flex;align-items:center;gap:4px;padding:2px 7px;background:rgba(255,255,255,0.15);border-radius:5px;font-size:11px;margin:0 4px 4px 0';c.textContent=ICONS[item.kind]+' '+item.name;bubble.appendChild(c);}
     });
-    if(text){const p=document.createElement('p');p.style.marginTop='6px';p.textContent=text;bubble.appendChild(p);}
-  }else{bubble.textContent=text;}
-  wrap.appendChild(av);wrap.appendChild(bubble);
+    if(text){
+      if(role==='ai'){const d=document.createElement('div');d.innerHTML=renderMarkdown(text);bubble.appendChild(d);}
+      else{const p=document.createElement('p');p.style.marginTop='6px';p.textContent=text;bubble.appendChild(p);}
+    }
+  }else{
+    if(role==='ai'){bubble.innerHTML=renderMarkdown(text);}
+    else{bubble.textContent=text;}
+  }
+  if(role==='ai'){
+    // 复制按钮
+    const copyBtn=document.createElement('button');
+    copyBtn.className='copy-btn';copyBtn.textContent='复制';
+    copyBtn.onclick=()=>{
+      navigator.clipboard.writeText(text).then(()=>{
+        copyBtn.textContent='已复制 ✓';copyBtn.classList.add('copied');
+        setTimeout(()=>{copyBtn.textContent='复制';copyBtn.classList.remove('copied');},2000);
+      });
+    };
+    wrap.appendChild(av);wrap.appendChild(bubble);wrap.appendChild(copyBtn);
+  }else{
+    wrap.appendChild(av);wrap.appendChild(bubble);
+  }
   document.getElementById('messages').appendChild(wrap);
   document.getElementById('messages').scrollTop=99999;
 }
@@ -404,7 +591,7 @@ function addTyping(){
 function removeTyping(){const t=document.getElementById('typing-wrap');if(t)t.remove();}
 
 function updateList(firstMsg){
-  if(!currentSession){currentSession={id:'s_'+Date.now(),title:firstMsg.slice(0,16)+(firstMsg.length>16?'...':'')};} 
+  if(!currentSession)currentSession={id:'s_'+Date.now(),title:firstMsg.slice(0,16)+(firstMsg.length>16?'...':'')};
   document.getElementById('topbarTitle').textContent=currentSession.title;
   renderChatList();
 }
@@ -419,19 +606,33 @@ async function callClaude(model,messages,items){
   });
   const msgs=[...messages];
   if(contentParts.length>0){const last=msgs[msgs.length-1];if(last.content)contentParts.push({type:'text',text:last.content});msgs[msgs.length-1]={role:'user',content:contentParts};}
-  const res=await fetch('https://api.anthropic.com/v1/messages',{method:'POST',headers:{'Content-Type':'application/json','x-api-key':keys.claude,'anthropic-version':'2023-06-01','anthropic-dangerous-direct-browser-access':'true'},body:JSON.stringify({model,max_tokens:2000,system:'你是一个专业、友善的AI助手，用简洁清晰的中文回答问题。',messages:msgs})});
+  const res=await fetch('https://api.anthropic.com/v1/messages',{method:'POST',headers:{'Content-Type':'application/json','x-api-key':keys.claude,'anthropic-version':'2023-06-01','anthropic-dangerous-direct-browser-access':'true'},body:JSON.stringify({model,max_tokens:params.maxTokens,temperature:params.temperature,system:'你是一个专业、友善的AI助手，用简洁清晰的中文回答问题。',messages:msgs})});
   const data=await res.json();
   if(data.error)throw new Error(data.error.message);
   return data.content?.[0]?.text||'';
 }
+
 async function callOpenAI(model,messages){
-  const res=await fetch('https://api.openai.com/v1/chat/completions',{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+keys.openai},body:JSON.stringify({model,messages:[{role:'system',content:'你是一个专业、友善的AI助手，用简洁清晰的中文回答问题。'},...messages]})});
+  const res=await fetch('https://api.openai.com/v1/chat/completions',{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+keys.openai},body:JSON.stringify({model,max_tokens:params.maxTokens,temperature:params.temperature,messages:[{role:'system',content:'你是一个专业、友善的AI助手，用简洁清晰的中文回答问题。'},...messages]})});
   const data=await res.json();
   if(data.error)throw new Error(data.error.message);
   return data.choices?.[0]?.message?.content||'';
 }
+
+async function callGemini(model,messages){
+  // 转换消息格式：assistant → model，content → parts
+  const contents=messages.map(m=>({role:m.role==='assistant'?'model':'user',parts:[{text:m.content}]}));
+  const body={contents,generationConfig:{temperature:params.temperature,maxOutputTokens:params.maxTokens}};
+  const res=await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${keys.gemini}`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});
+  const data=await res.json();
+  if(data.error)throw new Error(data.error.message);
+  return data.candidates?.[0]?.content?.parts?.[0]?.text||'';
+}
+
 async function callDeepSeek(model,messages){
-  const res=await fetch('https://api.deepseek.com/v1/chat/completions',{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+keys.deepseek},body:JSON.stringify({model,messages:[{role:'system',content:'你是一个专业、友善的AI助手，用简洁清晰的中文回答问题。'},...messages]})});
+  const body={model,max_tokens:params.maxTokens,temperature:params.temperature,messages:[{role:'system',content:'你是一个专业、友善的AI助手，用简洁清晰的中文回答问题。'},...messages]};
+  if(searchEnabled) body.tools=[{type:'web_search'}];
+  const res=await fetch('https://api.deepseek.com/v1/chat/completions',{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+keys.deepseek},body:JSON.stringify(body)});
   const data=await res.json();
   if(data.error)throw new Error(data.error.message);
   return data.choices?.[0]?.message?.content||'';
@@ -456,15 +657,15 @@ async function send(){
     let reply='';
     if(provider==='claude') reply=await callClaude(model,[...history],items);
     else if(provider==='openai') reply=await callOpenAI(model,[...history]);
+    else if(provider==='gemini') reply=await callGemini(model,[...history]);
     else if(provider==='deepseek') reply=await callDeepSeek(model,[...history]);
     removeTyping();
     addMsg('ai',reply);
     history.push({role:'assistant',content:reply});
-    saveCurrentSession();
-    renderChatList();
+    saveCurrentSession();renderChatList();
   }catch(e){
     removeTyping();
-    addMsg('ai','出错了：'+e.message+'\n\n请检查：\n1. 梯子是否开启\n2. API Key 是否正确（点左下角设置）');
+    addMsg('ai','出错了：'+e.message+'\n\n请检查：\n1. 梯子是否开启\n2. API Key 是否正确（点左下角「设置 Key」）\n3. 账户是否有余额');
   }
   isLoading=false;document.getElementById('messages').scrollTop=99999;
 }
