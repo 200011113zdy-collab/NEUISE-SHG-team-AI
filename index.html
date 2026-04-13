@@ -116,6 +116,8 @@
   .tool-btn{padding:4px 8px;background:transparent;border:none;border-radius:6px;cursor:pointer;font-size:12px;color:var(--muted);display:flex;align-items:center;gap:4px;font-family:inherit;transition:all 0.15s}
   .tool-btn:hover{background:var(--border);color:var(--text)}
   .tool-btn.on{background:var(--accent-light);color:var(--accent)}
+  .tool-btn.disabled{opacity:0.45;cursor:not-allowed}
+  .tool-btn.disabled:hover{background:transparent;color:var(--muted)}
   .tool-sep{width:1px;height:14px;background:var(--border);margin:0 3px}
   .send-btn{width:32px;height:32px;background:var(--user-bubble);border:none;border-radius:9px;cursor:pointer;display:flex;align-items:center;justify-content:center;flex-shrink:0;transition:opacity 0.15s;opacity:0.3}
   .send-btn.active{opacity:1}
@@ -228,17 +230,6 @@
         <input type="number" id="paramMaxTokens" min="256" max="8000" step="256" value="2000">
         <span style="font-size:12px;color:var(--muted)">tokens</span>
       </div>
-
-      <div class="toggle-row">
-        <div>
-          <label>DeepSeek 联网搜索</label>
-          <div><span>仅对 DeepSeek 模型有效</span></div>
-        </div>
-        <label class="toggle">
-          <input type="checkbox" id="deepseekSearch">
-          <span class="toggle-slider"></span>
-        </label>
-      </div>
     </div>
 
     <button class="modal-btn" onclick="saveKeys()">保存设置</button>
@@ -346,8 +337,7 @@ let keys={
 };
 let params={
   temperature:parseFloat(localStorage.getItem('p_temp')||'0.7'),
-  maxTokens:parseInt(localStorage.getItem('p_maxtokens')||'2000'),
-  deepseekSearch:localStorage.getItem('p_dssearch')==='1'
+  maxTokens:parseInt(localStorage.getItem('p_maxtokens')||'2000')
 };
 
 // ── 历史存储 ──
@@ -367,7 +357,6 @@ function init(){
   document.getElementById('paramTemp').value=params.temperature;
   document.getElementById('tempVal').textContent=params.temperature;
   document.getElementById('paramMaxTokens').value=params.maxTokens;
-  document.getElementById('deepseekSearch').checked=params.deepseekSearch;
   renderChatList();
   appendWelcome();
   onModelChange();
@@ -407,15 +396,26 @@ function delSession(e,id){
 function getProviderModel(){const v=document.getElementById('modelSelect').value;const[p,m]=v.split('|');return{provider:p,model:m};}
 
 function onModelChange(){
-  const{provider,model}=getProviderModel();
+  const{provider}=getProviderModel();
   document.getElementById('providerDot').style.background=PROVIDER_COLORS[provider]||'#888';
-  const supportsSearch=['openai','gemini','deepseek'].includes(provider);
-  document.getElementById('searchSep').style.display=supportsSearch?'':'none';
   const btn=document.getElementById('searchToggleBtn');
-  btn.style.display=supportsSearch?'':'none';
-  if(provider==='claude'){searchEnabled=false;}
-  btn.className='tool-btn'+(searchEnabled?' on':'');
-  btn.textContent=searchEnabled?'🔍 联网中':'🔍 联网';
+  const sep=document.getElementById('searchSep');
+  if(provider==='claude'){
+    sep.style.display='none';btn.style.display='none';searchEnabled=false;
+  } else if(provider==='deepseek'){
+    sep.style.display='';btn.style.display='';
+    searchEnabled=false; // DeepSeek 不支持真实联网，默认关闭
+    btn.className='tool-btn disabled';
+    btn.title='DeepSeek API 暂不支持真实联网搜索';
+    btn.textContent='🔍 联网（不支持）';
+    btn.onclick=()=>alert('DeepSeek API 目前不支持真实联网搜索。\n如需联网，请切换到 OpenAI 或 Gemini 模型。');
+  } else {
+    sep.style.display='';btn.style.display='';
+    btn.className='tool-btn'+(searchEnabled?' on':'');
+    btn.textContent=searchEnabled?'🔍 联网中':'🔍 联网';
+    btn.onclick=toggleSearch;
+    btn.title='';
+  }
 }
 
 function toggleSearch(){
@@ -434,7 +434,6 @@ function openKeys(){
   document.getElementById('paramTemp').value=params.temperature;
   document.getElementById('tempVal').textContent=params.temperature;
   document.getElementById('paramMaxTokens').value=params.maxTokens;
-  document.getElementById('deepseekSearch').checked=params.deepseekSearch;
   document.getElementById('keyModal').style.display='flex';
 }
 
@@ -448,10 +447,8 @@ function saveKeys(){
   ['claude','openai','gemini','deepseek'].forEach(p=>{const v=document.getElementById('key-'+p).value.trim();if(v){keys[p]=v;localStorage.setItem('key_'+p,v);}});
   params.temperature=parseFloat(document.getElementById('paramTemp').value);
   params.maxTokens=parseInt(document.getElementById('paramMaxTokens').value)||2000;
-  params.deepseekSearch=document.getElementById('deepseekSearch').checked;
   localStorage.setItem('p_temp',params.temperature);
   localStorage.setItem('p_maxtokens',params.maxTokens);
-  localStorage.setItem('p_dssearch',params.deepseekSearch?'1':'0');
   document.getElementById('keyModal').style.display='none';
 }
 
@@ -634,11 +631,7 @@ async function callGemini(model,messages){
 }
 
 async function callDeepSeek(model,messages){
-  // DeepSeek API 暂不支持 tools 联网，通过系统提示引导
-  const sysPrompt=searchEnabled
-    ?'你是一个专业、友善的AI助手，用简洁清晰的中文回答问题。请尽量基于最新信息回答，并在回答中注明相关信息的时间背景。'
-    :'你是一个专业、友善的AI助手，用简洁清晰的中文回答问题。';
-  const body={model,max_tokens:params.maxTokens,temperature:params.temperature,messages:[{role:'system',content:sysPrompt},...messages]};
+  const body={model,max_tokens:params.maxTokens,temperature:params.temperature,messages:[{role:'system',content:'你是一个专业、友善的AI助手，用简洁清晰的中文回答问题。'},...messages]};
   const res=await fetch('https://api.deepseek.com/v1/chat/completions',{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+keys.deepseek},body:JSON.stringify(body)});
   const data=await res.json();
   if(data.error)throw new Error(data.error.message);
