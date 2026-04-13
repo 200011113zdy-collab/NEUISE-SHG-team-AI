@@ -13,6 +13,43 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.9/contrib/auto-render.min.js"></script>
 <style>
 
+/* ── 思考过程折叠面板 ── */
+  .reasoning-box {
+    margin-bottom: 12px;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    background: #fdfdfc;
+    overflow: hidden;
+  }
+  .reasoning-summary {
+    padding: 10px 14px;
+    font-size: 13px;
+    color: var(--muted);
+    cursor: pointer;
+    user-select: none;
+    list-style: none; /* 隐藏默认小箭头 */
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    background: var(--bg);
+    transition: background 0.15s;
+  }
+  .reasoning-summary::-webkit-details-marker { display: none; }
+  .reasoning-summary:hover { background: var(--border); color: var(--text); }
+  .reasoning-summary svg { transition: transform 0.2s; }
+  .reasoning-box[open] .reasoning-summary svg { transform: rotate(90deg); }
+  .reasoning-content {
+    padding: 12px 14px;
+    font-size: 13px;
+    color: var(--muted);
+    border-top: 1px solid var(--border);
+    white-space: pre-wrap;
+    max-height: 500px;
+    overflow-y: auto;
+    line-height: 1.6;
+    background: #fdfdfc;
+  }
+
 /* 粘贴提示 */
 .paste-hint {
   position: absolute;
@@ -375,7 +412,16 @@ function saveCurrentSession(){
   if(!currentSession)return;
   const sessions=loadSessions();
   const idx=sessions.findIndex(s=>s.id===currentSession.id);
-  const data={id:currentSession.id,title:currentSession.title,messages:history.map(m=>({role:m.role,content:typeof m.content==='string'?m.content:'[含文件内容]'})),updated:Date.now()};
+  const data={
+    id:currentSession.id,
+    title:currentSession.title,
+    messages:history.map(m=>({
+      role:m.role,
+      content:typeof m.content==='string'?m.content:'[含文件内容]',
+      reasoning:m.reasoning||'' // 保存思考过程
+    })),
+    updated:Date.now()
+  };
   if(idx>=0)sessions[idx]=data;else sessions.unshift(data);
   saveSessions(sessions);
 }
@@ -405,10 +451,11 @@ function loadSession(id){
   const s=loadSessions().find(x=>x.id===id);
   if(!s)return;
   currentSession={id:s.id,title:s.title};
-  history=s.messages.map(m=>({role:m.role,content:m.content}));
+  history=s.messages.map(m=>({role:m.role,content:m.content,reasoning:m.reasoning}));
   document.getElementById('topbarTitle').textContent=s.title;
   document.getElementById('messages').innerHTML='';
-  s.messages.forEach(m=>renderMsg(m.role,m.content));
+  // 【修复渲染难看/没回复的Bug】使用 addMsg 而不是 renderMsg
+  s.messages.forEach(m=>addMsg(m.role, m.content, null, m.reasoning)); 
   document.getElementById('messages').scrollTop=99999;
   renderChatList();
 }
@@ -643,26 +690,49 @@ function renderMarkdown(text){
   return html;
 }
 
-function addMsg(role,text,items){
+function addMsg(role, text, items, reasoning){
   const w=document.getElementById('welcome');if(w)w.remove();
   const wrap=document.createElement('div');wrap.className='msg-wrap '+role;
   const av=document.createElement('div');av.className='msg-avatar '+role;av.textContent=role==='ai'?'AI':'我';
   const bubble=document.createElement('div');bubble.className='bubble '+role;
+  
   if(items&&items.length){
     items.forEach(item=>{
       if(item.kind==='image'){const img=document.createElement('img');img.src=item.preview;bubble.appendChild(img);}
       else{const c=document.createElement('span');c.style.cssText='display:inline-flex;align-items:center;gap:4px;padding:2px 7px;background:rgba(255,255,255,0.15);border-radius:5px;font-size:11px;margin:0 4px 4px 0';c.textContent=ICONS[item.kind]+' '+item.name;bubble.appendChild(c);}
     });
-    if(text){
-      if(role==='ai'){const d=document.createElement('div');d.innerHTML=renderMarkdown(text);bubble.appendChild(d);}
-      else{const p=document.createElement('p');p.style.marginTop='6px';p.textContent=text;bubble.appendChild(p);}
-    }
-  }else{
-    if(role==='ai'){bubble.innerHTML=renderMarkdown(text);}
-    else{bubble.textContent=text;}
   }
+
+  if(text || reasoning){
+    if(role==='ai'){
+      // 如果有思考过程，插入下拉框
+      if(reasoning) {
+        const rBox = document.createElement('details');
+        rBox.className = 'reasoning-box';
+        rBox.innerHTML = `
+          <summary class="reasoning-summary">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 18l6-6-6-6"/></svg>
+            已深度思考
+          </summary>
+          <div class="reasoning-content">${reasoning}</div>`;
+        bubble.appendChild(rBox);
+      }
+      if(text){
+        const d=document.createElement('div');
+        d.innerHTML=renderMarkdown(text);
+        bubble.appendChild(d);
+      }
+    }else{
+      if(text){
+        const p=document.createElement('p');
+        p.style.marginTop=items&&items.length?'6px':'0';
+        p.textContent=text;
+        bubble.appendChild(p);
+      }
+    }
+  }
+
   if(role==='ai'){
-    // 复制按钮
     const copyBtn=document.createElement('button');
     copyBtn.className='copy-btn';copyBtn.textContent='复制';
     copyBtn.onclick=()=>{
@@ -678,7 +748,6 @@ function addMsg(role,text,items){
   document.getElementById('messages').appendChild(wrap);
   document.getElementById('messages').scrollTop=99999;
 }
-
 function addTyping(){
   const w=document.getElementById('welcome');if(w)w.remove();
   const wrap=document.createElement('div');wrap.className='msg-wrap ai';wrap.id='typing-wrap';
@@ -765,12 +834,14 @@ function toDeepSeekMessages(messages){
 }
 
 // ── API 调用 ──
+// ── 修改 3：统一四个 API 的返回值格式，并抓取 DeepSeek 的 reasoning_content ──
+
 async function callClaude(model,messages){
   const msgs=toClaudeMessages(messages);
   const res=await fetch('https://api.anthropic.com/v1/messages',{method:'POST',headers:{'Content-Type':'application/json','x-api-key':keys.claude,'anthropic-version':'2023-06-01','anthropic-dangerous-direct-browser-access':'true'},body:JSON.stringify({model,max_tokens:params.maxTokens,temperature:params.temperature,system:'你是一个专业、友善的AI助手，用简洁清晰的中文回答问题。',messages:msgs})});
   const data=await res.json();
   if(data.error)throw new Error(data.error.message);
-  return data.content?.[0]?.text||'';
+  return { content: data.content?.[0]?.text||'', reasoning: '' };
 }
 
 async function callOpenAI(model,messages){
@@ -779,7 +850,7 @@ async function callOpenAI(model,messages){
   const res=await fetch('https://api.openai.com/v1/chat/completions',{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+keys.openai},body:JSON.stringify(body)});
   const data=await res.json();
   if(data.error)throw new Error(data.error.message);
-  return data.choices?.[0]?.message?.content||'';
+  return { content: data.choices?.[0]?.message?.content||'', reasoning: '' };
 }
 
 async function callGemini(model,messages){
@@ -788,7 +859,7 @@ async function callGemini(model,messages){
   const res=await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${keys.gemini}`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});
   const data=await res.json();
   if(data.error)throw new Error(data.error.message);
-  return data.candidates?.[0]?.content?.parts?.[0]?.text||'';
+  return { content: data.candidates?.[0]?.content?.parts?.[0]?.text||'', reasoning: '' };
 }
 
 async function callDeepSeek(model,messages){
@@ -796,8 +867,13 @@ async function callDeepSeek(model,messages){
   const res=await fetch('https://api.deepseek.com/v1/chat/completions',{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+keys.deepseek},body:JSON.stringify(body)});
   const data=await res.json();
   if(data.error)throw new Error(data.error.message);
-  return data.choices?.[0]?.message?.content||'';
+  return { 
+    content: data.choices?.[0]?.message?.content||'', 
+    reasoning: data.choices?.[0]?.message?.reasoning_content||'' // 抓取思考过程
+  };
 }
+
+// ── 修改 4：更新 send 函数，接收双参数 ──
 
 async function send(){
   if(isLoading)return;
@@ -811,25 +887,30 @@ async function send(){
   const items=[...pendingItems];pendingItems=[];renderAttachments();
   addMsg('user',text,items);
   updateList(text||(items[0]?items[0].name:'文件'));
-  // 把文件数据存进 history（_files 只在内存里，不写 localStorage）
+  
   const entry={role:'user',content:text||'请分析上传的文件'};
   if(items.length) entry._files=items.map(f=>({kind:f.kind,type:f.type||'',data:f.data||'',text:f.text||'',name:f.name,preview:f.preview||''}));
   history.push(entry);
   addTyping();
+  
   const{provider,model}=getProviderModel();
   try{
-    let reply='';
-    if(provider==='claude') reply=await callClaude(model,history);
-    else if(provider==='openai') reply=await callOpenAI(model,history);
-    else if(provider==='gemini') reply=await callGemini(model,history);
-    else if(provider==='deepseek') reply=await callDeepSeek(model,history);
+    let res = { content: '', reasoning: '' };
+    if(provider==='claude') res=await callClaude(model,history);
+    else if(provider==='openai') res=await callOpenAI(model,history);
+    else if(provider==='gemini') res=await callGemini(model,history);
+    else if(provider==='deepseek') res=await callDeepSeek(model,history);
+    
     removeTyping();
-    addMsg('ai',reply);
-    history.push({role:'assistant',content:reply});
-    saveCurrentSession();renderChatList();
+    // 渲染时把 reasoning 传进去
+    addMsg('ai', res.content, null, res.reasoning); 
+    // 保存到历史记录中
+    history.push({role:'assistant', content:res.content, reasoning:res.reasoning}); 
+    saveCurrentSession();
+    renderChatList();
   }catch(e){
     removeTyping();
-    addMsg('ai','出错了：'+e.message+'\n\n请检查：\n1. 梯子是否开启\n2. API Key 是否正确（点左下角「设置 Key」）\n3. 账户是否有余额');
+    addMsg('ai','出错了：'+e.message+'\n\n请检查：\n1. 网络是否连通\n2. API Key 是否正确（点左下角「设置 Key」）\n3. 账户是否有余额');
   }
   isLoading=false;document.getElementById('messages').scrollTop=99999;
 }
