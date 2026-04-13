@@ -144,11 +144,31 @@
   .bubble.ai th{background:var(--bg);font-weight:500}
   .bubble.ai strong{font-weight:600}
   .bubble.ai a{color:var(--accent);text-decoration:underline}
-  /* Copy button */
-  .msg-wrap.ai:hover .copy-btn{opacity:1}
-  .copy-btn{opacity:0;transition:opacity 0.15s;background:var(--bg);border:1px solid var(--border);border-radius:7px;padding:4px 8px;font-size:11px;color:var(--muted);cursor:pointer;align-self:flex-end;margin-bottom:4px;white-space:nowrap;font-family:inherit}
-  .copy-btn:hover{background:var(--white);color:var(--text)}
-  .copy-btn.copied{color:var(--accent);border-color:var(--accent)}
+  /* ── 消息底部操作栏 ── */
+  .msg-wrap.ai:hover .msg-actions { opacity: 1; }
+  .msg-actions {
+    opacity: 0;
+    transition: opacity 0.15s;
+    display: flex;
+    gap: 6px;
+    align-self: flex-end;
+    margin-bottom: 4px;
+    flex-shrink: 0;
+  }
+  .action-btn {
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: 7px;
+    padding: 4px 8px;
+    font-size: 11px;
+    color: var(--muted);
+    cursor: pointer;
+    white-space: nowrap;
+    font-family: inherit;
+    transition: all 0.15s;
+  }
+  .action-btn:hover { background: var(--white); color: var(--text); }
+  .action-btn.copied { color: var(--accent); border-color: var(--accent); }
   .typing{display:flex;gap:4px;align-items:center;padding:13px 15px}
   .dot{width:6px;height:6px;background:var(--muted);border-radius:50%;animation:bounce 1.2s infinite}
   .dot:nth-child(2){animation-delay:0.2s}.dot:nth-child(3){animation-delay:0.4s}
@@ -710,7 +730,6 @@ function addMsg(role, text, items, reasoning){
 
   if(text || reasoning){
     if(role==='ai'){
-      // 如果有思考过程，插入下拉框
       if(reasoning) {
         const rBox = document.createElement('details');
         rBox.className = 'reasoning-box';
@@ -738,15 +757,28 @@ function addMsg(role, text, items, reasoning){
   }
 
   if(role==='ai'){
+    // 创建一个容器把两个按钮装起来
+    const actionBox = document.createElement('div');
+    actionBox.className = 'msg-actions';
+
     const copyBtn=document.createElement('button');
-    copyBtn.className='copy-btn';copyBtn.textContent='复制';
+    copyBtn.className='action-btn';copyBtn.textContent='复制';
     copyBtn.onclick=()=>{
       navigator.clipboard.writeText(text).then(()=>{
         copyBtn.textContent='已复制 ✓';copyBtn.classList.add('copied');
         setTimeout(()=>{copyBtn.textContent='复制';copyBtn.classList.remove('copied');},2000);
       });
     };
-    wrap.appendChild(av);wrap.appendChild(bubble);wrap.appendChild(copyBtn);
+
+    // 新增：重新生成按钮
+    const regenBtn=document.createElement('button');
+    regenBtn.className='action-btn';regenBtn.innerHTML='⟳ 重新生成';
+    regenBtn.onclick=()=>regenerateMsg(wrap); // 绑定重新生成事件
+
+    actionBox.appendChild(copyBtn);
+    actionBox.appendChild(regenBtn);
+
+    wrap.appendChild(av);wrap.appendChild(bubble);wrap.appendChild(actionBox);
   }else{
     wrap.appendChild(av);wrap.appendChild(bubble);
   }
@@ -884,24 +916,8 @@ async function callDeepSeek(model,messages){
 
 // ── 修改 4：更新 send 函数，接收双参数 ──
 
-async function send(){
-  if(isLoading)return;
-  if(!checkKey())return;
-  const input=document.getElementById('input');
-  const text=input.value.trim();
-  if(!text&&!pendingItems.length)return;
-  input.value='';input.style.height='auto';
-  document.getElementById('sendBtn').className='send-btn';
-  isLoading=true;
-  const items=[...pendingItems];pendingItems=[];renderAttachments();
-  addMsg('user',text,items);
-  updateList(text||(items[0]?items[0].name:'文件'));
-  
-  const entry={role:'user',content:text||'请分析上传的文件'};
-  if(items.length) entry._files=items.map(f=>({kind:f.kind,type:f.type||'',data:f.data||'',text:f.text||'',name:f.name,preview:f.preview||''}));
-  history.push(entry);
-  addTyping();
-  
+// 新增 1：提取出通用的 API 请求核心逻辑
+async function fetchReply() {
   const{provider,model}=getProviderModel();
   try{
     let res = { content: '', reasoning: '' };
@@ -911,17 +927,63 @@ async function send(){
     else if(provider==='deepseek') res=await callDeepSeek(model,history);
     
     removeTyping();
-    // 渲染时把 reasoning 传进去
     addMsg('ai', res.content, null, res.reasoning); 
-    // 保存到历史记录中
     history.push({role:'assistant', content:res.content, reasoning:res.reasoning}); 
     saveCurrentSession();
     renderChatList();
   }catch(e){
     removeTyping();
-    addMsg('ai','出错了：'+e.message+'\n\n请检查：\n1. 网络是否连通\n2. API Key 是否正确（点左下角「设置 Key」）\n3. 账户是否有余额');
+    addMsg('ai','出错了：'+e.message+'\n\n请检查网络或 API Key 设置。');
   }
-  isLoading=false;document.getElementById('messages').scrollTop=99999;
+  isLoading=false;
+  document.getElementById('messages').scrollTop=99999;
+}
+
+// 修改 2：现在的 send 变得非常干净
+async function send(){
+  if(isLoading)return;
+  if(!checkKey())return;
+  const input=document.getElementById('input');
+  const text=input.value.trim();
+  if(!text&&!pendingItems.length)return;
+  input.value='';input.style.height='auto';
+  document.getElementById('sendBtn').className='send-btn';
+  isLoading=true;
+  
+  const items=[...pendingItems];pendingItems=[];renderAttachments();
+  addMsg('user',text,items);
+  updateList(text||(items[0]?items[0].name:'文件'));
+  
+  const entry={role:'user',content:text||'请分析上传的文件'};
+  if(items.length) entry._files=items.map(f=>({kind:f.kind,type:f.type||'',data:f.data||'',text:f.text||'',name:f.name,preview:f.preview||''}));
+  history.push(entry);
+  
+  addTyping();
+  await fetchReply();
+}
+
+// 新增 3：处理重新生成点击事件
+async function regenerateMsg(wrapElement) {
+  if(isLoading) return;
+  
+  const container = document.getElementById('messages');
+  const allWraps = Array.from(container.querySelectorAll('.msg-wrap:not(#typing-wrap)'));
+  const index = allWraps.indexOf(wrapElement);
+  
+  if(index === -1) return;
+
+  // 核心逻辑：截断历史记录。保留到当前这条 AI 回复之前的内容
+  history = history.slice(0, index);
+
+  // 从页面上移除当前这条 AI 回复，以及它后面可能跟着的所有上下文对话
+  for(let i = index; i < allWraps.length; i++) {
+    allWraps[i].remove();
+  }
+
+  // 重新发起请求
+  isLoading = true;
+  addTyping();
+  await fetchReply(); 
 }
 
 init();
