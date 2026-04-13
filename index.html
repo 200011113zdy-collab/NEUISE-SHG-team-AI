@@ -815,8 +815,21 @@ async function send(){
   const items=[...pendingItems]; pendingItems=[]; renderAttachments();
   addMsg('user',text,items);
   updateList(text||(items[0]?items[0].name:'文件'));
+
+  let finalPrompt = text;
+  if (items.length > 0) {
+      items.forEach(item => {
+          if (item.text) {
+              finalPrompt += `\n\n【文件：${item.name} 内容如下】\n${item.text}`;
+          } 
+          else if (item.kind === 'image') {
+              finalPrompt += `\n\n【用户上传了一张图片：${item.name}】`;
+          }
+      });
+  }
+  history.push({role:'user',content: finalPrompt || '请分析上传的文件'});
   
-  history.push({role:'user',content:text||'请分析上传的文件'});
+ 
   const{provider,model}=getProviderModel();
 
   const streamUI = createMsgStream('ai');
@@ -855,7 +868,35 @@ async function send(){
   }
   isLoading=false;
 }
+// ── 监听输入框的粘贴事件 ──
+document.getElementById('input').addEventListener('paste', function(e) {
+  const clipboardData = e.clipboardData || window.clipboardData;
+  if (!clipboardData) return;
 
+  const items = clipboardData.items;
+  const imageFiles = [];
+
+  for (let i = 0; i < items.length; i++) {
+    // 检查剪贴板内容是否为图片
+    if (items[i].type.indexOf('image') !== -1) {
+      const file = items[i].getAsFile();
+      if (file) {
+        // 为粘贴的图片生成一个默认文件名
+        const ext = file.type.split('/')[1] || 'png';
+        const newFile = new File([file], `paste_${Date.now()}.${ext}`, { type: file.type });
+        imageFiles.push(newFile);
+      }
+    }
+  }
+
+  if (imageFiles.length > 0) {
+    // 阻止默认粘贴行为（防止某些浏览器在 textarea 里插入奇怪的路径）
+    e.preventDefault();
+    // 触发已有的文件处理流程，将图片加入 pendingItems 并在输入框上方预览
+    handleFiles(imageFiles, 'image');
+  }
+});
+  
 init();
 </script>
 </body>
