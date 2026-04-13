@@ -739,10 +739,52 @@ function createMsgStream(role) {
 }
 
 // ── API 请求核心 ──
-function toClaudeMessages(messages){ return messages.map(m=>{ return {role:m.role,content:m.content}; }); }
-function toOpenAIMessages(messages){ return messages.map(m=>{ return {role:m.role,content:m.content}; }); }
-function toGeminiContents(messages){ return messages.map(m=>{ return {role:m.role==='assistant'?'model':'user',parts:[{text:m.content}]}; }); }
-function toDeepSeekMessages(messages){ return messages.map(m=>{ return {role:m.role,content:m.content}; }); }
+// ── 统一多模态转换逻辑 ──
+
+function toClaudeMessages(messages) {
+  return messages.map(m => {
+    if (!m.images || m.images.length === 0) return { role: m.role, content: m.content };
+    // Claude 格式：content 为数组，包含图片和文本对象
+    const contentArr = m.images.map(img => ({
+      type: "image",
+      source: { type: "base64", media_type: img.type, data: img.data }
+    }));
+    contentArr.push({ type: "text", text: m.content || "请分析这张图片" });
+    return { role: m.role, content: contentArr };
+  });
+}
+
+function toOpenAIMessages(messages) {
+  return messages.map(m => {
+    if (!m.images || m.images.length === 0) return { role: m.role, content: m.content };
+    // OpenAI/DeepSeek(兼容) 格式：使用 image_url
+    const contentArr = m.images.map(img => ({
+      type: "image_url",
+      image_url: { url: `data:${img.type};base64,${img.data}` }
+    }));
+    contentArr.push({ type: "text", text: m.content || "请分析这张图片" });
+    return { role: m.role, content: contentArr };
+  });
+}
+
+function toGeminiContents(messages) {
+  return messages.map(m => {
+    const parts = [];
+    if (m.images && m.images.length > 0) {
+      // Gemini 格式：parts 数组中包含 inlineData
+      m.images.forEach(img => {
+        parts.push({ inlineData: { mimeType: img.type, data: img.data } });
+      });
+    }
+    parts.push({ text: m.content || "请分析这张图片" });
+    return { role: m.role === 'assistant' ? 'model' : 'user', parts: parts };
+  });
+}
+
+function toDeepSeekMessages(messages) {
+  // 假设你的 DeepSeek 渠道支持视觉（兼容 OpenAI 格式）
+  return toOpenAIMessages(messages);
+}
 
 async function fetchSSE(url, options, onMessage) {
   const res = await fetch(url, options);
@@ -816,18 +858,36 @@ async function send(){
   addMsg('user',text,items);
   updateList(text||(items[0]?items[0].name:'文件'));
 
+// ── 进阶核心发送逻辑（保留了文档解析，增加了图片 Payload） ──
   let finalPrompt = text;
+  let imagePayloads = []; 
+
   if (items.length > 0) {
-      items.forEach(item => {
-          if (item.text) {
-              finalPrompt += `\n\n【文件：${item.name} 内容如下】\n${item.text}`;
-          } 
-          else if (item.kind === 'image') {
-              finalPrompt += `\n\n【用户上传了一张图片：${item.name}】`;
-          }
-      });
+    items.forEach(item => {
+      // 1. 保留原有功能：如果是 PDF/Word/Excel 提取出的文字，依然拼接到 Prompt 里
+      if (item.text) {
+        finalPrompt += `\n\n【文件：${item.name} 内容如下】\n${item.text}`;
+      } 
+      // 2. 增强功能：如果是图片，不仅记录名称，还将真实的 Base64 数据存入数组
+      else if (item.kind === 'image') {
+        finalPrompt += `\n\n【用户上传了一张图片：${item.name}】`;
+        imagePayloads.push(item); 
+      }
+    });
   }
-  history.push({role:'user',content: finalPrompt || '请分析上传的文件'});
+
+  // 3. 构建历史记录对象
+  const historyEntry = {
+    role: 'user',
+    content: finalPrompt || (imagePayloads.length > 0 ? "请分析图片" : "分析附件")
+  };
+
+  // 4. 如果有图片，将数据挂载到 images 属性上，供 API 转换函数使用
+  if (imagePayloads.length > 0) {
+    historyEntry.images = imagePayloads;
+  }
+
+  history.push(historyEntry);
   
  
   const{provider,model}=getProviderModel();
