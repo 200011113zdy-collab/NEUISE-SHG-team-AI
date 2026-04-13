@@ -931,13 +931,16 @@ async function fetchReply() {
     history.push({role:'assistant', content:res.content, reasoning:res.reasoning}); 
     saveCurrentSession();
     renderChatList();
-  }catch(e){
+  } catch(e) {
     removeTyping();
-    addMsg('ai','出错了：'+e.message+'\n\n请检查网络或 API Key 设置。');
+    // 调用我们刚写的翻译函数
+    const friendlyReason = translateError(e.message);
+    
+    // 把通俗原因和原始英文报错一起显示出来
+    const errorText = `**出错了！** ❌\n\n**大概原因**：${friendlyReason}\n\n> *🔧 原始报错信息（供排查）：*\n> *${e.message}*`;
+    
+    addMsg('ai', errorText);
   }
-  isLoading=false;
-  document.getElementById('messages').scrollTop=99999;
-}
 
 // 修改 2：现在的 send 变得非常干净
 async function send(){
@@ -984,6 +987,39 @@ async function regenerateMsg(wrapElement) {
   isLoading = true;
   addTyping();
   await fetchReply(); 
+}
+
+// ── 错误信息翻译机 ──
+function translateError(errMsg) {
+  const text = (errMsg || '').toLowerCase();
+  
+  // 1. 余额不足 / 欠费
+  if (text.includes('insufficient_quota') || text.includes('balance') || text.includes('credit') || text.includes('payment')) {
+    return 'API 余额不足或欠费了，请去对应的官网检查账户额度。💸';
+  }
+  // 2. 密钥错误 / 封号 / 无权限
+  if (text.includes('unauthorized') || text.includes('invalid_api_key') || text.includes('invalid api key') || text.includes('authentication') || text.includes('401')) {
+    return 'API Key 无效或未授权。请检查左侧设置里的 Key 是否填错，或者多了一处空格。🔑';
+  }
+  // 3. 并发过高 / 官方服务器炸了
+  if (text.includes('overloaded') || text.includes('rate limit') || text.includes('429') || text.includes('too many requests') || text.includes('resource_exhausted')) {
+    return '当前模型官方服务器太拥挤，或者你发得太快了被限流。请喝口水稍等半分钟再试。⏳';
+  }
+  // 4. 网络不通 / 跨域拦截
+  if (text.includes('failed to fetch') || text.includes('network error') || text.includes('connection')) {
+    return '网络连接失败！可能是需要科学上网，或者你当前的代理/梯子不稳定。🌐';
+  }
+  // 5. 模型不存在 / 没权限用这个模型
+  if (text.includes('model_not_found') || (text.includes('model') && text.includes('not found'))) {
+    return '找不到该模型，或者你的 API Key 没有使用当前选中模型的权限。🛑';
+  }
+  // 6. 上下文超限 (Token 太多)
+  if (text.includes('context_length_exceeded') || text.includes('maximum context length')) {
+    return '发的内容太长了！超出了该模型能处理的最大字数限制，请开个“新对话”或精简内容。📏';
+  }
+  
+  // 如果没有匹配到常见错误，就原样返回英文
+  return '未知错误，建议翻译一下下面的原始信息。';
 }
 
 init();
