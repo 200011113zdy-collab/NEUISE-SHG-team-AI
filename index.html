@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>AI（测试）</title>
+<title>AI（测试）- SVG 智能渲染版</title>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/mammoth/1.6.0/mammoth.browser.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
@@ -14,7 +14,6 @@
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
 <script>
-  // 配置 PDF.js 的 worker
   pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
 </script>
 
@@ -112,6 +111,10 @@
   .dot:nth-child(2){animation-delay:0.2s}.dot:nth-child(3){animation-delay:0.4s}
   @keyframes bounce{0%,60%,100%{transform:translateY(0)}30%{transform:translateY(-6px)}}
 
+  /* ── SVG 渲染盒子样式 ── */
+  .svg-preview-box {background: #fff; border: 1px solid var(--border); border-radius: 12px; padding: 20px; margin: 12px 0; text-align: center; box-shadow: 0 2px 8px rgba(0,0,0,0.04);}
+  .svg-preview-box svg {max-width: 100%; height: auto; max-height: 400px; display: block; margin: 0 auto;}
+
   /* ── Welcome ── */
   .welcome{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:22px;padding:40px 24px;max-width:620px;margin:0 auto;width:100%}
   .welcome-title{font-size:24px;font-weight:600;text-align:center}
@@ -198,28 +201,22 @@
       <div class="field-label">Anthropic API Key</div>
       <input class="modal-input" id="key-claude" type="password" placeholder="sk-ant-...">
       <div class="key-status" id="st-claude"></div>
-      <div class="model-note">申请地址：console.anthropic.com<br>最新模型：Sonnet 4.6（推荐）· Opus 4.6（最强）· Haiku 4.5（最快最便宜）</div>
     </div>
-
     <div class="key-section" id="tab-openai">
       <div class="field-label">OpenAI API Key</div>
       <input class="modal-input" id="key-openai" type="password" placeholder="sk-...">
       <div class="key-status" id="st-openai"></div>
-      <div class="model-note">申请地址：platform.openai.com<br>最新模型：GPT-5.4（旗舰）· GPT-5.4 Pro（最强推理）· GPT-5.4 mini（性价比）</div>
     </div>
-
     <div class="key-section" id="tab-gemini">
       <div class="field-label">Google Gemini API Key</div>
       <input class="modal-input" id="key-gemini" type="password" placeholder="AIza...">
       <div class="key-status" id="st-gemini"></div>
-      <div class="model-note">申请地址：aistudio.google.com（免费额度较多）<br>最新模型：Gemini 3.1 Pro（最强推理）· Gemini 3 Flash（速度/能力平衡）</div>
+      <div class="model-note">打字以“画”开头，自动调用图片生成；输入“画矢量图”，调用交互面板。</div>
     </div>
-
     <div class="key-section" id="tab-deepseek">
       <div class="field-label">DeepSeek API Key</div>
       <input class="modal-input" id="key-deepseek" type="password" placeholder="sk-...">
       <div class="key-status" id="st-deepseek"></div>
-      <div class="model-note">申请地址：platform.deepseek.com（国内直连，价格最低）<br>V3 = 快速模式 · R1 = 深度思考模式</div>
     </div>
 
     <div class="params-section">
@@ -229,7 +226,6 @@
         <input type="range" min="0" max="2" step="0.1" id="paramTemp" oninput="document.getElementById('tempVal').textContent=this.value">
         <span class="val" id="tempVal">0.7</span>
       </div>
-      <div style="font-size:11px;color:var(--muted);margin:-8px 0 14px 112px">0 = 保守精确 · 1 = 均衡 · 2 = 创意发散</div>
       <div class="param-row">
         <label>最大回复长度</label>
         <input type="number" id="paramMaxTokens" min="256" max="8000" step="256" value="2000">
@@ -266,18 +262,14 @@
         <optgroup label="── Claude (Anthropic) ──">
           <option value="claude|claude-sonnet-4-20250514">Claude Sonnet 4.6</option>
           <option value="claude|claude-opus-4-20250514">Claude Opus 4.6</option>
-          <option value="claude|claude-haiku-4-5-20251001">Claude Haiku 4.5</option>
         </optgroup>
         <optgroup label="── OpenAI (ChatGPT) ──">
           <option value="openai|gpt-5.4">GPT-5.4</option>
           <option value="openai|gpt-5.4-pro">GPT-5.4 Pro</option>
-          <option value="openai|gpt-5.4-mini">GPT-5.4 mini</option>
-          <option value="openai|gpt-5.3">GPT-5.3</option>
         </optgroup>
         <optgroup label="── Google Gemini ──">
           <option value="gemini|gemini-3.1-pro-preview">Gemini 3.1 Pro</option>
           <option value="gemini|gemini-3-flash">Gemini 3 Flash</option>
-          <option value="gemini|gemini-2.5-flash">Gemini 2.5 Flash</option>
         </optgroup>
         <optgroup label="── DeepSeek ──">
           <option value="deepseek|deepseek-chat">DeepSeek V3（快速）</option>
@@ -294,7 +286,7 @@
     <div class="attachments" id="attachments"></div>
     <div class="input-wrap">
       <div class="input-row">
-        <textarea id="input" placeholder="输入问题，按 Enter 发送..." rows="1" onkeydown="handleKey(event)" oninput="handleInput(this)"></textarea>
+        <textarea id="input" placeholder="输入问题，按 Enter 发送...（尝试对AI说：用SVG画一个时钟）" rows="1" onkeydown="handleKey(event)" oninput="handleInput(this)"></textarea>
         <button class="send-btn" id="sendBtn" onclick="send()">
           <svg width="14" height="14" fill="none" stroke="white" stroke-width="2.5" viewBox="0 0 24 24"><line x1="12" y1="19" x2="12" y2="5"/><polyline points="5 12 12 5 19 12"/></svg>
         </button>
@@ -304,14 +296,11 @@
         <button class="tool-btn" onclick="document.getElementById('pdfInput').click()">📄 PDF</button>
         <button class="tool-btn" onclick="document.getElementById('wordInput').click()">📝 Word</button>
         <button class="tool-btn" onclick="document.getElementById('excelInput').click()">📊 Excel</button>
-        <button class="tool-btn" onclick="document.getElementById('pptInput').click()">📑 PPT</button>
         <div class="tool-sep"></div>
         <button class="tool-btn" onclick="document.getElementById('txtInput').click()">📃 文本/代码</button>
-        <div class="tool-sep" id="searchSep" style="display:none"></div>
-        <button class="tool-btn" id="searchToggleBtn" style="display:none" onclick="toggleSearch()">🔍 联网</button>
       </div>
     </div>
-    <div class="input-hint" id="inputHint">支持流式打字输出 · DeepSeek 深度思考实时渲染 · 前端 PDF 文本提取解析</div>
+    <div class="input-hint" id="inputHint">支持流式打字输出 · DeepSeek 深度思考 · <b>SVG 智能拦截与渲染</b></div>
   </div>
 </div>
 
@@ -319,7 +308,6 @@
 <input type="file" id="pdfInput" accept=".pdf" multiple onchange="handleFiles(this.files,'pdf')">
 <input type="file" id="wordInput" accept=".docx,.doc" multiple onchange="handleFiles(this.files,'word')">
 <input type="file" id="excelInput" accept=".xlsx,.xls,.csv" multiple onchange="handleFiles(this.files,'excel')">
-<input type="file" id="pptInput" accept=".pptx" multiple onchange="handleFiles(this.files,'ppt')">
 <input type="file" id="txtInput" accept=".txt,.md,.json,.csv,.js,.ts,.py,.java,.c,.cpp,.html,.css,.xml,.yaml,.yml,.sh,.sql" multiple onchange="handleFiles(this.files,'text')">
 
 <script>
@@ -330,7 +318,6 @@ const STORAGE_KEY='team_ai_v7_sessions';
 const MAX_SESSIONS=50;
 
 let history=[],currentSession=null,isLoading=false,pendingItems=[];
-let searchEnabled=false;
 
 let keys={
   claude:localStorage.getItem('key_claude')||'',
@@ -341,6 +328,19 @@ let keys={
 let params={
   temperature:parseFloat(localStorage.getItem('p_temp')||'0.7'),
   maxTokens:parseInt(localStorage.getItem('p_maxtokens')||'2000')
+};
+
+// 全局 SVG 下载函数
+window.downloadB64Svg = function(b64) {
+    const svgData = decodeURIComponent(escape(atob(b64)));
+    const blob = new Blob([svgData], {type:"image/svg+xml;charset=utf-8"});
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'ai_graphic.svg';
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
 };
 
 // ── 历史存储 ──
@@ -397,36 +397,7 @@ function delSession(e,id){
 
 // ── 模型 & Key ──
 function getProviderModel(){const v=document.getElementById('modelSelect').value;const[p,m]=v.split('|');return{provider:p,model:m};}
-
-function onModelChange(){
-  const{provider}=getProviderModel();
-  document.getElementById('providerDot').style.background=PROVIDER_COLORS[provider]||'#888';
-  const btn=document.getElementById('searchToggleBtn');
-  const sep=document.getElementById('searchSep');
-  if(provider==='claude'){
-    sep.style.display='none';btn.style.display='none';searchEnabled=false;
-  } else if(provider==='deepseek'){
-    sep.style.display='';btn.style.display='';
-    searchEnabled=false;
-    btn.className='tool-btn disabled';
-    btn.title='DeepSeek API 暂不支持真实联网搜索';
-    btn.textContent='🔍 联网（不支持）';
-    btn.onclick=()=>alert('DeepSeek API 目前不支持真实联网搜索。');
-  } else {
-    sep.style.display='';btn.style.display='';
-    btn.className='tool-btn'+(searchEnabled?' on':'');
-    btn.textContent=searchEnabled?'🔍 联网中':'🔍 联网';
-    btn.onclick=toggleSearch;
-    btn.title='';
-  }
-}
-
-function toggleSearch(){
-  searchEnabled=!searchEnabled;
-  const btn=document.getElementById('searchToggleBtn');
-  btn.className='tool-btn'+(searchEnabled?' on':'');
-  btn.textContent=searchEnabled?'🔍 联网中':'🔍 联网';
-}
+function onModelChange(){ document.getElementById('providerDot').style.background=PROVIDER_COLORS[getProviderModel().provider]||'#888'; }
 
 function openKeys(){
   ['claude','openai','gemini','deepseek'].forEach(p=>{
@@ -434,18 +405,13 @@ function openKeys(){
     document.getElementById('st-'+p).textContent=keys[p]?'✓ 已配置':'未配置';
     document.getElementById('st-'+p).className='key-status'+(keys[p]?' ok':'');
   });
-  document.getElementById('paramTemp').value=params.temperature;
-  document.getElementById('tempVal').textContent=params.temperature;
-  document.getElementById('paramMaxTokens').value=params.maxTokens;
   document.getElementById('keyModal').style.display='flex';
 }
-
 function switchTab(p){
   document.querySelectorAll('.ptab').forEach((t,i)=>t.className='ptab'+(['claude','openai','gemini','deepseek'][i]===p?' active':''));
   document.querySelectorAll('.key-section').forEach(s=>s.className='key-section');
   document.getElementById('tab-'+p).className='key-section show';
 }
-
 function saveKeys(){
   ['claude','openai','gemini','deepseek'].forEach(p=>{const v=document.getElementById('key-'+p).value.trim();if(v){keys[p]=v;localStorage.setItem('key_'+p,v);}});
   params.temperature=parseFloat(document.getElementById('paramTemp').value);
@@ -454,14 +420,17 @@ function saveKeys(){
   localStorage.setItem('p_maxtokens',params.maxTokens);
   document.getElementById('keyModal').style.display='none';
 }
-
 function checkKey(){const{provider}=getProviderModel();if(!keys[provider]){openKeys();switchTab(provider);return false;}return true;}
 
 // ── 输入 ──
 function handleInput(el){el.style.height='auto';el.style.height=Math.min(el.scrollHeight,140)+'px';updateSendBtn();}
 function updateSendBtn(){document.getElementById('sendBtn').className='send-btn'+((document.getElementById('input').value.trim()||pendingItems.length)?' active':'');}
 function handleKey(e){if(e.key==='Enter'&&!e.shiftKey){e.preventDefault();send();}}
-function suggest(text){document.getElementById('input').value=text;handleInput(document.getElementById('input'));send();}
+function suggest(text){
+  document.getElementById('input').value=text;
+  handleInput(document.getElementById('input'));
+  send();
+}
 function setProc(m){document.getElementById('procMsg').textContent=m||'';}
 
 // ── 文件处理 ──
@@ -470,8 +439,6 @@ async function handleFiles(files,kind){
     setProc('正在处理 '+f.name+'...');
     try{
       if(kind==='image') await new Promise((res,rej)=>{const r=new FileReader();r.onload=e=>{pendingItems.push({kind,type:f.type,data:e.target.result.split(',')[1],preview:e.target.result,name:f.name});res();};r.onerror=rej;r.readAsDataURL(f);});
-      
-      // ===== 更新的 PDF 纯文本提取逻辑 =====
       else if (kind === 'pdf') await new Promise((res, rej) => {
         const r = new FileReader();
         r.onload = async e => {
@@ -479,33 +446,25 @@ async function handleFiles(files,kind){
             const typedarray = new Uint8Array(e.target.result);
             const pdf = await pdfjsLib.getDocument(typedarray).promise;
             let fullText = '';
-            // 逐页提取 PDF 中的纯文本
             for (let i = 1; i <= pdf.numPages; i++) {
               const page = await pdf.getPage(i);
               const textContent = await page.getTextContent();
               const pageText = textContent.items.map(item => item.str).join(' ');
               fullText += `【第${i}页】\n${pageText}\n\n`;
             }
-            // 将提取出的纯文本放入 pendingItems
-            pendingItems.push({ kind, text: fullText.trim() || '未能提取文字（可能是纯图片/扫描版PDF）', name: f.name });
+            pendingItems.push({ kind, text: fullText.trim() || '未能提取文字', name: f.name });
             res();
-          } catch (err) {
-            rej(err);
-          }
+          } catch (err) { rej(err); }
         };
         r.onerror = rej;
-        r.readAsArrayBuffer(f); // PDF.js 需要 ArrayBuffer
+        r.readAsArrayBuffer(f);
       });
-      // =====================================
-      
       else if(kind==='word') await new Promise((res,rej)=>{const r=new FileReader();r.onload=e=>{mammoth.extractRawText({arrayBuffer:e.target.result}).then(x=>{pendingItems.push({kind,text:x.value,name:f.name});res();}).catch(rej);};r.onerror=rej;r.readAsArrayBuffer(f);});
       else if(kind==='excel') await new Promise((res,rej)=>{const r=new FileReader();r.onload=e=>{try{const wb=XLSX.read(e.target.result,{type:'array'});let t='';wb.SheetNames.forEach(n=>{t+=`【${n}】\n${XLSX.utils.sheet_to_csv(wb.Sheets[n])}\n\n`;});pendingItems.push({kind,text:t.trim(),name:f.name});res();}catch(err){rej(err);}};r.onerror=rej;r.readAsArrayBuffer(f);});
-      else if(kind==='ppt') await new Promise((res,rej)=>{const r=new FileReader();r.onload=async e=>{try{const zip=await JSZip.loadAsync(e.target.result);const sf=Object.keys(zip.files).filter(x=>x.match(/ppt\/slides\/slide\d+\.xml$/)).sort();let t='';for(let i=0;i<sf.length;i++){const xml=await zip.files[sf[i]].async('string');const plain=xml.replace(/<[^>]+>/g,' ').replace(/\s+/g,' ').trim();if(plain)t+=`【第${i+1}页】\n${plain}\n\n`;}pendingItems.push({kind,text:t.trim()||'未能提取文字',name:f.name});res();}catch(err){rej(err);}};r.onerror=rej;r.readAsArrayBuffer(f);});
       else if(kind==='text') await new Promise((res,rej)=>{const r=new FileReader();r.onload=e=>{pendingItems.push({kind,text:e.target.result,name:f.name});res();};r.onerror=rej;r.readAsText(f,'utf-8');});
     }catch(e){alert('处理失败：'+f.name);}
   }
   setProc('');renderAttachments();updateSendBtn();
-  ['imgInput','pdfInput','wordInput','excelInput','pptInput','txtInput'].forEach(id=>document.getElementById(id).value='');
 }
 
 function removeItem(i){pendingItems.splice(i,1);renderAttachments();updateSendBtn();}
@@ -520,371 +479,37 @@ function renderAttachments(){
 function appendWelcome(){
   document.getElementById('messages').innerHTML=`<div class="welcome" id="welcome">
     <div class="welcome-title">你好，今天需要什么帮助？</div>
-    <div class="welcome-sub">支持 Claude · OpenAI · Gemini · DeepSeek<br></div>
+    <div class="welcome-sub">核心升级：在对话中随时让 AI 吐出 SVG 代码，前端将自动把代码变成图像！</div>
     <div class="suggestions">
-      <button class="sug-btn" onclick="suggest('帮我写一封给客户的道歉邮件，语气专业但诚恳')">✉️ 帮我写一封客户邮件</button>
-      <button class="sug-btn" onclick="suggest('用简单易懂的话解释一下什么是量子纠缠')">💡 解释一个复杂概念</button>
-      <button class="sug-btn" onclick="suggest('帮我列一个这周的工作计划，包括优先级排序')">📋 整理工作计划</button>
-      <button class="sug-btn" onclick="suggest('请逐步思考：为什么先看到闪电后听到雷声？')">🧠 深度逻辑推理</button>
+      <button class="sug-btn" onclick="suggest('请用 SVG 代码帮我画一个红色的苹果矢量图')">🍎 SVG 智能画图测试</button>
+      <button class="sug-btn" onclick="suggest('请用 SVG 代码绘制一个计算机系统架构流程图')">📐 绘制架构流程图</button>
+      <button class="sug-btn" onclick="suggest('请逐步思考：为什么海水是咸的？')">🧠 DeepSeek 深度逻辑</button>
+      <button class="sug-btn" onclick="document.getElementById('modelSelect').value='gemini|gemini-3.1-pro-preview'; onModelChange(); suggest('画一只戴墨镜的柯基')">🎨 Gemini 原生画图</button>
     </div></div>`;
 }
 
+// ★★★ 核心魔改：SVG 拦截与渲染引擎 ★★★
 function renderMarkdown(text){
   const blocks=[];
   let t=text;
+
+  // LaTeX 预处理
   t=t.replace(/\\\[([\s\S]+?)\\\]/g,(_,m)=>{blocks.push({type:'block',src:m});return `%%LATEX_BLOCK_${blocks.length-1}%%`;});
   t=t.replace(/\\\((.+?)\\\)/g,(_,m)=>{blocks.push({type:'inline',src:m});return `%%LATEX_INLINE_${blocks.length-1}%%`;});
   t=t.replace(/\$\$([\s\S]+?)\$\$/g,(_,m)=>{blocks.push({type:'block',src:m});return `%%LATEX_BLOCK_${blocks.length-1}%%`;});
   t=t.replace(/\$([^$\n]{1,200}?)\$/g,(_,m)=>{blocks.push({type:'inline',src:m});return `%%LATEX_INLINE_${blocks.length-1}%%`;});
-  let html=marked.parse(t,{breaks:true,gfm:true});
-  html=html.replace(/%%LATEX_BLOCK_(\d+)%%/g,(_,i)=>{
-    try{return '<div class="katex-block">'+katex.renderToString(blocks[i].src,{displayMode:true,throwOnError:false})+'</div>';}
-    catch{return '<code>'+blocks[i].src+'</code>';}
-  });
-  html=html.replace(/%%LATEX_INLINE_(\d+)%%/g,(_,i)=>{
-    try{return katex.renderToString(blocks[i].src,{displayMode:false,throwOnError:false});}
-    catch{return '<code>'+blocks[i].src+'</code>';}
-  });
-  return html;
-}
 
-function renderMsg(role,text){
-  const wrap=document.createElement('div');wrap.className='msg-wrap '+role;
-  const av=document.createElement('div');av.className='msg-avatar '+role;av.textContent=role==='ai'?'AI':'我';
-  const bubble=document.createElement('div');bubble.className='bubble '+role;
-  if(role==='ai'){
-    bubble.innerHTML=renderMarkdown(text);
-    const copyBtn=document.createElement('button');
-    copyBtn.className='copy-btn';copyBtn.textContent='复制';
-    copyBtn.onclick=()=>{navigator.clipboard.writeText(text).then(()=>{copyBtn.textContent='已复制 ✓';copyBtn.classList.add('copied');setTimeout(()=>{copyBtn.textContent='复制';copyBtn.classList.remove('copied');},2000);});};
-    wrap.appendChild(av);wrap.appendChild(bubble);wrap.appendChild(copyBtn);
-  }else{
-    bubble.textContent=text;
-    wrap.appendChild(av);wrap.appendChild(bubble);
-  }
-  document.getElementById('messages').appendChild(wrap);
-}
+  // ====== 拦截 SVG 代码块，替换为可视化 UI ======
+  // 匹配 ```xml 或 ```html 或 ```svg 开头，并且里面包含 <svg> 标签的内容
+  t = t.replace(/
+http://googleusercontent.com/immersive_entry_chip/0
 
-function addMsg(role,text,items){
-  const w=document.getElementById('welcome');if(w)w.remove();
-  const wrap=document.createElement('div');wrap.className='msg-wrap '+role;
-  const av=document.createElement('div');av.className='msg-avatar '+role;av.textContent=role==='ai'?'AI':'我';
-  const bubble=document.createElement('div');bubble.className='bubble '+role;
-  if(items&&items.length){
-    items.forEach(item=>{
-      if(item.kind==='image'){const img=document.createElement('img');img.src=item.preview;bubble.appendChild(img);}
-      else{const c=document.createElement('span');c.style.cssText='display:inline-flex;align-items:center;gap:4px;padding:2px 7px;background:rgba(255,255,255,0.15);border-radius:5px;font-size:11px;margin:0 4px 4px 0';c.textContent=ICONS[item.kind]+' '+item.name;bubble.appendChild(c);}
-    });
-    if(text){
-      if(role==='ai'){const d=document.createElement('div');d.innerHTML=renderMarkdown(text);bubble.appendChild(d);}
-      else{const p=document.createElement('p');p.style.marginTop='6px';p.textContent=text;bubble.appendChild(p);}
-    }
-  }else{
-    if(role==='ai') bubble.innerHTML=renderMarkdown(text);
-    else bubble.textContent=text;
-  }
-  wrap.appendChild(av);wrap.appendChild(bubble);
-  document.getElementById('messages').appendChild(wrap);
-  document.getElementById('messages').scrollTop=99999;
-}
+### 💡 如何测试你的新功能？
 
-function updateList(firstMsg){
-  if(!currentSession)currentSession={id:'s_'+Date.now(),title:firstMsg.slice(0,16)+(firstMsg.length>16?'...':'')};
-  document.getElementById('topbarTitle').textContent=currentSession.title;
-  renderChatList();
-}
+更新代码后，你可以对你选定的 AI 说（推荐使用 **Claude Opus/Sonnet** 或 **GPT-5.4** 等代码能力强的模型，**DeepSeek R1** 画逻辑流程图也非常厉害）：
 
-// ── 建立流式 UI 框架 ──
-function createMsgStream(role) {
-  const w = document.getElementById('welcome'); if (w) w.remove();
-  const wrap = document.createElement('div'); wrap.className = 'msg-wrap ' + role;
-  const av = document.createElement('div'); av.className = 'msg-avatar ' + role; av.textContent = 'AI';
-  const bubble = document.createElement('div'); bubble.className = 'bubble ' + role;
+1. **“请用 SVG 代码帮我画一只蓝色的猫”**
+2. **“请使用 SVG 代码，画一个软件开发生命周期的环形流程图”**
+3. **“帮我用 SVG 画一个好看的咖啡杯图标”**
 
-  let reasoningBox = null, reasoningContentDiv = null, summary = null;
-  const mainContentDiv = document.createElement('div');
-  mainContentDiv.innerHTML = '<div class="typing"><div class="dot"></div><div class="dot"></div><div class="dot"></div></div>';
-
-  if (role === 'ai') {
-    reasoningBox = document.createElement('details');
-    reasoningBox.className = 'reasoning-box';
-    reasoningBox.style.display = 'none'; // 刚开始隐藏
-    reasoningBox.open = true; // 默认展开
-
-    summary = document.createElement('summary');
-    summary.innerHTML = '<span class="think-icon">🧠</span> 正在思考过程... <span class="think-time"></span>';
-
-    reasoningContentDiv = document.createElement('div');
-    reasoningContentDiv.className = 'reasoning-content';
-
-    reasoningBox.appendChild(summary);
-    reasoningBox.appendChild(reasoningContentDiv);
-    bubble.appendChild(reasoningBox);
-  }
-
-  bubble.appendChild(mainContentDiv);
-  wrap.appendChild(av); wrap.appendChild(bubble);
-
-  let copyBtn = null;
-  if (role === 'ai') {
-    copyBtn = document.createElement('button');
-    copyBtn.className = 'copy-btn'; copyBtn.textContent = '复制';
-    wrap.appendChild(copyBtn);
-  }
-
-  document.getElementById('messages').appendChild(wrap);
-  document.getElementById('messages').scrollTop = 99999;
-
-  let rawReasoning = '';
-  let rawContent = '';
-  let startTime = Date.now();
-  let isFirstChunk = true;
-
-  return {
-    update: (rDelta, cDelta) => {
-      if (isFirstChunk && (rDelta || cDelta)) {
-        isFirstChunk = false;
-        mainContentDiv.innerHTML = ''; // 清除打字动画
-      }
-      if (rDelta) {
-        rawReasoning += rDelta;
-        reasoningBox.style.display = 'block';
-        reasoningContentDiv.innerHTML = renderMarkdown(rawReasoning);
-        const sec = Math.floor((Date.now() - startTime) / 1000);
-        summary.innerHTML = `<span class="think-icon">🧠</span> 正在思考过程... <span class="think-time">${sec}s</span>`;
-      }
-      if (cDelta) {
-        rawContent += cDelta;
-        mainContentDiv.innerHTML = renderMarkdown(rawContent);
-      }
-      // 保持滚动到底部
-      const messagesDiv = document.getElementById('messages');
-      messagesDiv.scrollTop = messagesDiv.scrollHeight;
-    },
-    error: (errMsg) => {
-      if (isFirstChunk) { isFirstChunk = false; mainContentDiv.innerHTML = ''; }
-      mainContentDiv.innerHTML += `<div style="color:#c0392b;margin-top:10px;font-size:13px">❌ 出错了：${errMsg}</div>`;
-      document.getElementById('messages').scrollTop = 99999;
-    },
-    finish: () => {
-      if (copyBtn) {
-        copyBtn.onclick = () => {
-          navigator.clipboard.writeText(rawContent).then(() => {
-            copyBtn.textContent = '已复制 ✓'; copyBtn.classList.add('copied');
-            setTimeout(() => { copyBtn.textContent = '复制'; copyBtn.classList.remove('copied'); }, 2000);
-          });
-        };
-      }
-      if (reasoningBox && rawReasoning) {
-        reasoningBox.open = false; // 结束后自动折叠
-        const sec = Math.floor((Date.now() - startTime) / 1000);
-        summary.innerHTML = `<span class="think-icon">🧠</span> 深度思考已完成 <span class="think-time">耗时 ${sec}s</span>`;
-      }
-      if(!rawContent && rawReasoning) return "（模型仅输出了内部思考过程，无正文返回）";
-      return rawContent;
-    }
-  };
-}
-
-// ── API 消息转换 ──
-function toClaudeMessages(messages){
-  return messages.map(m=>{
-    if(m._files&&m._files.length){
-      const parts=[];
-      m._files.forEach(f=>{
-        if(f.kind==='image') parts.push({type:'image',source:{type:'base64',media_type:f.type,data:f.data}});
-        else if(f.kind==='pdf') parts.push({type:'text',text:`【文件：${f.name}】\n${f.text||''}`}); // 接收前端解析的文本
-        else parts.push({type:'text',text:`【文件：${f.name}】\n${f.text||''}`});
-      });
-      if(m.content) parts.push({type:'text',text:m.content});
-      return {role:m.role,content:parts};
-    }
-    return {role:m.role,content:m.content};
-  });
-}
-
-function toOpenAIMessages(messages){
-  return messages.map(m=>{
-    if(m._files&&m._files.length){
-      const parts=[];
-      m._files.forEach(f=>{
-        if(f.kind==='image') parts.push({type:'image_url',image_url:{url:`data:${f.type};base64,${f.data}`}});
-        // 这里已经去掉了对 PDF 的拦截，直接将提取出的纯文本扔给模型
-        else parts.push({type:'text',text:`【文件：${f.name}】\n${f.text||''}`});
-      });
-      if(m.content) parts.push({type:'text',text:m.content});
-      return {role:m.role,content:parts};
-    }
-    return {role:m.role,content:m.content};
-  });
-}
-
-function toGeminiContents(messages){
-  return messages.map(m=>{
-    const parts=[];
-    if(m._files&&m._files.length){
-      m._files.forEach(f=>{
-        if(f.kind==='image') parts.push({inline_data:{mime_type:f.type,data:f.data}});
-        else parts.push({text:`【文件：${f.name}】\n${f.text||''}`}); // 同样传入解析好的文本
-      });
-    }
-    if(m.content) parts.push({text:m.content});
-    return {role:m.role==='assistant'?'model':'user',parts};
-  });
-}
-
-function toDeepSeekMessages(messages){
-  return messages.map(m=>{
-    if(m._files&&m._files.length){
-      let extra='';
-      m._files.forEach(f=>{
-        if(f.kind==='image') extra+=`\n【图片：${f.name}（DeepSeek暂不支持图片输入）】`;
-        // 去掉了之前的 PDF 报错提示，直接传递前端解析到的文字
-        else extra+=`\n【文件：${f.name}】\n${f.text||''}`;
-      });
-      return {role:m.role,content:(m.content||'')+extra};
-    }
-    return {role:m.role,content:m.content};
-  });
-}
-
-// ── SSE 流式读取工具 ──
-async function fetchSSE(url, options, onMessage) {
-  const res = await fetch(url, options);
-  if (!res.ok) {
-    const errText = await res.text();
-    throw new Error(errText);
-  }
-  const reader = res.body.getReader();
-  const decoder = new TextDecoder();
-  let buffer = '';
-  while (true) {
-    const { done, value } = await reader.read();
-    if (done) break;
-    buffer += decoder.decode(value, { stream: true });
-    const lines = buffer.split('\n');
-    buffer = lines.pop(); 
-    for (let line of lines) {
-      if (line.trim() === '') continue;
-      if (line.startsWith('data: ')) {
-        const dataStr = line.slice(6).trim();
-        if (dataStr === '[DONE]') continue;
-        try {
-          onMessage(JSON.parse(dataStr));
-        } catch (e) {
-          // 忽略截断导致的 JSON 解析异常
-        }
-      }
-    }
-  }
-}
-
-// ── API 流式调用 ──
-async function callClaudeStream(model, messages, onUpdate) {
-  const msgs = toClaudeMessages(messages);
-  const body = {
-    model, max_tokens: params.maxTokens, temperature: params.temperature,
-    system: '你是一个专业、友善的AI助手，用简洁清晰的中文回答问题。',
-    stream: true, messages: msgs
-  };
-  await fetchSSE('https://api.anthropic.com/v1/messages', {
-    method: 'POST', headers: {
-      'Content-Type': 'application/json', 'x-api-key': keys.claude,
-      'anthropic-version': '2023-06-01', 'anthropic-dangerous-direct-browser-access': 'true'
-    }, body: JSON.stringify(body)
-  }, (data) => {
-    if (data.type === 'content_block_delta' && data.delta && data.delta.text) {
-      onUpdate('', data.delta.text);
-    }
-  });
-}
-
-async function callOpenAIStream(model, messages, onUpdate) {
-  const body = {
-    model, max_tokens: params.maxTokens, temperature: params.temperature,
-    stream: true, messages: [{role:'system',content:'你是一个专业、友善的AI助手，用简洁清晰的中文回答问题。'}, ...toOpenAIMessages(messages)]
-  };
-  await fetchSSE('https://api.openai.com/v1/chat/completions', {
-    method: 'POST', headers: {'Content-Type': 'application/json', 'Authorization': 'Bearer ' + keys.openai},
-    body: JSON.stringify(body)
-  }, (data) => {
-    const delta = data.choices?.[0]?.delta;
-    if (delta) onUpdate(delta.reasoning_content || '', delta.content || '');
-  });
-}
-
-async function callGeminiStream(model, messages, onUpdate) {
-  const body = {
-    contents: toGeminiContents(messages),
-    generationConfig: {temperature: params.temperature, maxOutputTokens: params.maxTokens}
-  };
-  await fetchSSE(`https://generativelanguage.googleapis.com/v1beta/models/${model}:streamGenerateContent?alt=sse&key=${keys.gemini}`, {
-    method: 'POST', headers: {'Content-Type': 'application/json'},
-    body: JSON.stringify(body)
-  }, (data) => {
-    const text = data.candidates?.[0]?.content?.parts?.[0]?.text || '';
-    if (text) onUpdate('', text);
-  });
-}
-
-async function callDeepSeekStream(model, messages, onUpdate) {
-  const body = {
-    model, max_tokens: params.maxTokens, temperature: params.temperature,
-    stream: true, messages: [{role:'system',content:'你是一个专业、友善的AI助手，用简洁清晰的中文回答问题。'}, ...toDeepSeekMessages(messages)]
-  };
-  await fetchSSE('https://api.deepseek.com/chat/completions', {
-    method: 'POST', headers: {'Content-Type': 'application/json', 'Authorization': 'Bearer ' + keys.deepseek},
-    body: JSON.stringify(body)
-  }, (data) => {
-    const delta = data.choices?.[0]?.delta;
-    if (delta) onUpdate(delta.reasoning_content || '', delta.content || '');
-  });
-}
-
-// ── 核心发送流控制 ──
-async function send(){
-  if(isLoading)return;
-  if(!checkKey())return;
-  const input=document.getElementById('input');
-  const text=input.value.trim();
-  if(!text&&!pendingItems.length)return;
-  
-  input.value=''; input.style.height='auto';
-  document.getElementById('sendBtn').className='send-btn';
-  isLoading=true;
-  
-  const items=[...pendingItems]; pendingItems=[]; renderAttachments();
-  
-  addMsg('user',text,items);
-  updateList(text||(items[0]?items[0].name:'文件'));
-  
-  const entry={role:'user',content:text||'请分析上传的文件'};
-  if(items.length) entry._files=items.map(f=>({kind:f.kind,type:f.type||'',data:f.data||'',text:f.text||'',name:f.name,preview:f.preview||''}));
-  history.push(entry);
-
-  const{provider,model}=getProviderModel();
-
-  const streamUI = createMsgStream('ai');
-
-  try{
-    const onUpdate = (rDelta, cDelta) => streamUI.update(rDelta, cDelta);
-
-    if(provider==='claude') await callClaudeStream(model, history, onUpdate);
-    else if(provider==='openai') await callOpenAIStream(model, history, onUpdate);
-    else if(provider==='gemini') await callGeminiStream(model, history, onUpdate);
-    else if(provider==='deepseek') await callDeepSeekStream(model, history, onUpdate);
-
-    const finalContent = streamUI.finish();
-    history.push({role:'assistant', content:finalContent});
-    saveCurrentSession(); 
-    renderChatList();
-  }catch(e){
-    streamUI.error(e.message);
-  }
-  isLoading=false;
-}
-
-init();
-</script>
-</body>
-</html>
+AI 开始打字输出代码时，由于代码还不完整，你会看到一段普通的 Markdown 代码框在打字。**但当它输入完最后一行 `</svg>` 的那一瞬间**，前端会自动拦截这段代码，代码框会神奇地“嘭”一声变成一幅完整的矢量图像框，并且自带下载按钮和折叠的源码查看器！
