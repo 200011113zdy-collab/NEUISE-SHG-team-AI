@@ -595,16 +595,76 @@ function updateList(firstMsg){
   renderChatList();
 }
 
-// ── API 调用 ──
-async function callClaude(model,messages,items){
-  const contentParts=[];
-  items.forEach(item=>{
-    if(item.kind==='image') contentParts.push({type:'image',source:{type:'base64',media_type:item.type,data:item.data}});
-    else if(item.kind==='pdf') contentParts.push({type:'document',source:{type:'base64',media_type:'application/pdf',data:item.data}});
-    else contentParts.push({type:'text',text:`【${item.name}】\n${item.text||''}`});
+// ── 统一消息格式转换 ──
+// history 中每条消息结构：{role, content, _files:[{kind,type,data,text,name}]}
+// _files 只在当前会话内存中存在，不写入 localStorage
+
+function toClaudeMessages(messages){
+  return messages.map(m=>{
+    if(m._files&&m._files.length){
+      const parts=[];
+      m._files.forEach(f=>{
+        if(f.kind==='image') parts.push({type:'image',source:{type:'base64',media_type:f.type,data:f.data}});
+        else if(f.kind==='pdf') parts.push({type:'document',source:{type:'base64',media_type:'application/pdf',data:f.data}});
+        else parts.push({type:'text',text:`【文件：${f.name}】\n${f.text||''}`});
+      });
+      if(m.content) parts.push({type:'text',text:m.content});
+      return {role:m.role,content:parts};
+    }
+    return {role:m.role,content:m.content};
   });
-  const msgs=[...messages];
-  if(contentParts.length>0){const last=msgs[msgs.length-1];if(last.content)contentParts.push({type:'text',text:last.content});msgs[msgs.length-1]={role:'user',content:contentParts};}
+}
+
+function toOpenAIMessages(messages){
+  return messages.map(m=>{
+    if(m._files&&m._files.length){
+      const parts=[];
+      m._files.forEach(f=>{
+        if(f.kind==='image') parts.push({type:'image_url',image_url:{url:`data:${f.type};base64,${f.data}`}});
+        else if(f.kind==='pdf') parts.push({type:'text',text:`【PDF文件：${f.name}（OpenAI 暂不支持直接读取 PDF，以下为文件名提示）】`});
+        else parts.push({type:'text',text:`【文件：${f.name}】\n${f.text||''}`});
+      });
+      if(m.content) parts.push({type:'text',text:m.content});
+      return {role:m.role,content:parts};
+    }
+    return {role:m.role,content:m.content};
+  });
+}
+
+function toGeminiContents(messages){
+  return messages.map(m=>{
+    const parts=[];
+    if(m._files&&m._files.length){
+      m._files.forEach(f=>{
+        if(f.kind==='image') parts.push({inline_data:{mime_type:f.type,data:f.data}});
+        else if(f.kind==='pdf') parts.push({inline_data:{mime_type:'application/pdf',data:f.data}});
+        else parts.push({text:`【文件：${f.name}】\n${f.text||''}`});
+      });
+    }
+    if(m.content) parts.push({text:m.content});
+    return {role:m.role==='assistant'?'model':'user',parts};
+  });
+}
+
+function toDeepSeekMessages(messages){
+  // DeepSeek 不支持图片/PDF，文字文件以文本形式传入
+  return messages.map(m=>{
+    if(m._files&&m._files.length){
+      let extra='';
+      m._files.forEach(f=>{
+        if(f.kind==='image') extra+=`\n【图片文件：${f.name}（DeepSeek 不支持图片输入）】`;
+        else if(f.kind==='pdf') extra+=`\n【PDF文件：${f.name}（DeepSeek 不支持 PDF 输入）】`;
+        else extra+=`\n【文件：${f.name}】\n${f.text||''}`;
+      });
+      return {role:m.role,content:(m.content||'')+extra};
+    }
+    return {role:m.role,content:m.content};
+  });
+}
+
+// ── API 调用 ──
+async function callClaude(model,messages){
+  const msgs=toClaudeMessages(messages);
   const res=await fetch('https://api.anthropic.com/v1/messages',{method:'POST',headers:{'Content-Type':'application/json','x-api-key':keys.claude,'anthropic-version':'2023-06-01','anthropic-dangerous-direct-browser-access':'true'},body:JSON.stringify({model,max_tokens:params.maxTokens,temperature:params.temperature,system:'你是一个专业、友善的AI助手，用简洁清晰的中文回答问题。',messages:msgs})});
   const data=await res.json();
   if(data.error)throw new Error(data.error.message);
@@ -612,7 +672,7 @@ async function callClaude(model,messages,items){
 }
 
 async function callOpenAI(model,messages){
-  const body={model,max_tokens:params.maxTokens,temperature:params.temperature,messages:[{role:'system',content:'你是一个专业、友善的AI助手，用简洁清晰的中文回答问题。'},...messages]};
+  const body={model,max_tokens:params.maxTokens,temperature:params.temperature,messages:[{role:'system',content:'你是一个专业、友善的AI助手，用简洁清晰的中文回答问题。'},...toOpenAIMessages(messages)]};
   if(searchEnabled) body.tools=[{type:'web_search_preview'}];
   const res=await fetch('https://api.openai.com/v1/chat/completions',{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+keys.openai},body:JSON.stringify(body)});
   const data=await res.json();
@@ -621,8 +681,7 @@ async function callOpenAI(model,messages){
 }
 
 async function callGemini(model,messages){
-  const contents=messages.map(m=>({role:m.role==='assistant'?'model':'user',parts:[{text:m.content}]}));
-  const body={contents,generationConfig:{temperature:params.temperature,maxOutputTokens:params.maxTokens}};
+  const body={contents:toGeminiContents(messages),generationConfig:{temperature:params.temperature,maxOutputTokens:params.maxTokens}};
   if(searchEnabled) body.tools=[{google_search:{}}];
   const res=await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${keys.gemini}`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});
   const data=await res.json();
@@ -631,7 +690,7 @@ async function callGemini(model,messages){
 }
 
 async function callDeepSeek(model,messages){
-  const body={model,max_tokens:params.maxTokens,temperature:params.temperature,messages:[{role:'system',content:'你是一个专业、友善的AI助手，用简洁清晰的中文回答问题。'},...messages]};
+  const body={model,max_tokens:params.maxTokens,temperature:params.temperature,messages:[{role:'system',content:'你是一个专业、友善的AI助手，用简洁清晰的中文回答问题。'},...toDeepSeekMessages(messages)]};
   const res=await fetch('https://api.deepseek.com/v1/chat/completions',{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+keys.deepseek},body:JSON.stringify(body)});
   const data=await res.json();
   if(data.error)throw new Error(data.error.message);
@@ -650,15 +709,18 @@ async function send(){
   const items=[...pendingItems];pendingItems=[];renderAttachments();
   addMsg('user',text,items);
   updateList(text||(items[0]?items[0].name:'文件'));
-  history.push({role:'user',content:text||'请分析上传的文件'});
+  // 把文件数据存进 history（_files 只在内存里，不写 localStorage）
+  const entry={role:'user',content:text||'请分析上传的文件'};
+  if(items.length) entry._files=items.map(f=>({kind:f.kind,type:f.type||'',data:f.data||'',text:f.text||'',name:f.name,preview:f.preview||''}));
+  history.push(entry);
   addTyping();
   const{provider,model}=getProviderModel();
   try{
     let reply='';
-    if(provider==='claude') reply=await callClaude(model,[...history],items);
-    else if(provider==='openai') reply=await callOpenAI(model,[...history]);
-    else if(provider==='gemini') reply=await callGemini(model,[...history]);
-    else if(provider==='deepseek') reply=await callDeepSeek(model,[...history]);
+    if(provider==='claude') reply=await callClaude(model,history);
+    else if(provider==='openai') reply=await callOpenAI(model,history);
+    else if(provider==='gemini') reply=await callGemini(model,history);
+    else if(provider==='deepseek') reply=await callDeepSeek(model,history);
     removeTyping();
     addMsg('ai',reply);
     history.push({role:'assistant',content:reply});
