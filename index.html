@@ -12,6 +12,33 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.9/katex.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.9/contrib/auto-render.min.js"></script>
 <style>
+
+/* 粘贴提示 */
+.paste-hint {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  background: var(--accent-light);
+  color: var(--accent);
+  padding: 12px 20px;
+  border-radius: 8px;
+  font-size: 13px;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 0.2s;
+  z-index: 10;
+}
+
+.paste-hint.show {
+  opacity: 1;
+}
+
+.input-wrap.paste-active {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px var(--accent-light);
+}
+ 
   *{box-sizing:border-box;margin:0;padding:0}
   :root{
     --bg:#f7f6f2;--sidebar:#efede8;--white:#fff;--border:#e2dfd8;
@@ -290,8 +317,9 @@
     <div class="processing-msg" id="procMsg"></div>
     <div class="attachments" id="attachments"></div>
     <div class="input-wrap">
-      <div class="input-row">
-        <textarea id="input" placeholder="输入问题，按 Enter 发送..." rows="1" onkeydown="handleKey(event)" oninput="handleInput(this)"></textarea>
+    <div class="paste-hint" id="pasteHint">🖼️ 粘贴图片中...</div>
+    <div class="input-row">
+    <textarea id="input" placeholder="输入问题，按 Enter 发送... 也可以直接粘贴图片 Ctrl+V" rows="1" onkeydown="handleKey(event)" oninput="handleInput(this)" onpaste="handlePaste(event)"></textarea>
         <button class="send-btn" id="sendBtn" onclick="send()">
           <svg width="14" height="14" fill="none" stroke="white" stroke-width="2.5" viewBox="0 0 24 24"><line x1="12" y1="19" x2="12" y2="5"/><polyline points="5 12 12 5 19 12"/></svg>
         </button>
@@ -308,7 +336,7 @@
         <button class="tool-btn" id="searchToggleBtn" style="display:none" onclick="toggleSearch()">🔍 联网</button>
       </div>
     </div>
-    <div class="input-hint" id="inputHint">支持 JPG·PNG·PDF·DOCX·XLSX·PPTX·TXT·CSV·JSON·代码 · 历史自动保存</div>
+   <div class="input-hint" id="inputHint">支持 JPG·PNG·PDF·DOCX·XLSX·PPTX·TXT·CSV·JSON·代码 · 可直接粘贴图片 Ctrl+V · 历史自动保存</div>
   </div>
 </div>
 
@@ -455,7 +483,81 @@ function saveKeys(){
 function checkKey(){const{provider}=getProviderModel();if(!keys[provider]){openKeys();switchTab(provider);return false;}return true;}
 
 // ── 输入 ──
-function handleInput(el){el.style.height='auto';el.style.height=Math.min(el.scrollHeight,140)+'px';updateSendBtn();}
+function handleInput(el){
+  el.style.height='auto';
+  el.style.height=Math.min(el.scrollHeight,140)+'px';
+  updateSendBtn();
+}
+
+function updateSendBtn(){
+  document.getElementById('sendBtn').className='send-btn'+((document.getElementById('input').value.trim()||pendingItems.length)?' active':'');
+}
+
+function handleKey(e){
+  if(e.key==='Enter'&&!e.shiftKey){
+    e.preventDefault();
+    send();
+  }
+}
+
+// 新增：处理粘贴事件
+function handlePaste(e) {
+  const items = e.clipboardData?.items;
+  if (!items) return;
+  
+  let hasImage = false;
+  for (let i = 0; i < items.length; i++) {
+    const item = items[i];
+    if (item.type.startsWith('image/')) {
+      hasImage = true;
+      e.preventDefault();
+      
+      const file = item.getAsFile();
+      if (file) {
+        showPasteHint();
+        handlePastedImage(file);
+      }
+      break;
+    }
+  }
+}
+
+// 新增：显示粘贴提示
+function showPasteHint() {
+  const hint = document.getElementById('pasteHint');
+  const inputWrap = document.querySelector('.input-wrap');
+  
+  hint.classList.add('show');
+  inputWrap.classList.add('paste-active');
+  
+  setTimeout(() => {
+    hint.classList.remove('show');
+    inputWrap.classList.remove('paste-active');
+  }, 1500);
+}
+
+// 新增：处理粘贴的图片
+async function handlePastedImage(file) {
+  try {
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      const timestamp = new Date().toLocaleTimeString();
+      pendingItems.push({
+        kind: 'image',
+        type: file.type,
+        data: e.target.result.split(',')[1],
+        preview: e.target.result,
+        name: `粘贴图片_${timestamp}`
+      });
+      renderAttachments();
+      updateSendBtn();
+    };
+    reader.readAsDataURL(file);
+  } catch (error) {
+    console.error('处理粘贴图片失败:', error);
+    alert('处理粘贴图片失败，请重试');
+  }
+}
 function updateSendBtn(){document.getElementById('sendBtn').className='send-btn'+((document.getElementById('input').value.trim()||pendingItems.length)?' active':'');}
 function handleKey(e){if(e.key==='Enter'&&!e.shiftKey){e.preventDefault();send();}}
 function suggest(text){document.getElementById('input').value=text;handleInput(document.getElementById('input'));send();}
