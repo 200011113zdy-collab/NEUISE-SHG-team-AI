@@ -3,8 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>AI（测试2026.04.13）</title>
-<!-- 各种文件处理与 Markdown/Math 渲染库 -->
+<title>AI（测试）</title>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/mammoth/1.6.0/mammoth.browser.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
@@ -12,13 +11,6 @@
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.9/katex.min.css">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.9/katex.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.9/contrib/auto-render.min.js"></script>
-
-<!-- 引入 PDF.js 库用于前端解析 PDF 文本 -->
-<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
-<script>
-  pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
-</script>
-
 <style>
   *{box-sizing:border-box;margin:0;padding:0}
   :root{
@@ -50,8 +42,8 @@
   .footer-btn{flex:1;padding:7px 6px;font-size:11px;color:var(--muted);background:transparent;border:1px solid var(--border);border-radius:7px;cursor:pointer;font-family:inherit;text-align:center;transition:all 0.15s}
   .footer-btn:hover{background:var(--accent-light);color:var(--accent);border-color:var(--accent)}
 
-  /* ── Mn ── */
-  .mn{flex:1;display:flex;flex-direction:column;height:100vh;min-width:0}
+  /* ── Main ── */
+  .main{flex:1;display:flex;flex-direction:column;height:100vh;min-width:0}
   .topbar{height:52px;border-bottom:1px solid var(--border);display:flex;align-items:center;padding:0 20px;gap:10px;background:var(--white);flex-shrink:0}
   .topbar-title{font-size:14px;color:var(--muted);flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
   .model-select-wrap{display:flex;align-items:center;gap:6px;background:var(--bg);border:1px solid var(--border);border-radius:20px;padding:4px 12px 4px 10px;transition:all 0.15s}
@@ -63,16 +55,15 @@
   .messages{flex:1;overflow-y:auto;padding:28px 0;display:flex;flex-direction:column}
   .messages::-webkit-scrollbar{width:4px}
   .messages::-webkit-scrollbar-thumb{background:var(--border);border-radius:2px}
-  .msg-wrap{display:flex;padding:5px 28px;gap:12px;max-width:1200px;margin:0 auto;width:100%}
+  .msg-wrap{display:flex;padding:5px 28px;gap:12px;max-width:860px;margin:0 auto;width:100%}
   .msg-wrap.user{flex-direction:row-reverse}
   .msg-avatar{width:26px;height:26px;border-radius:50%;flex-shrink:0;margin-top:3px;display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:500}
-  .msg-avatar.{background:var(--accent-light);color:var(--accent)}
+  .msg-avatar.ai{background:var(--accent-light);color:var(--accent)}
   .msg-avatar.user{background:var(--user-bubble);color:var(--user-text)}
-  .bubble{padding:11px 15px;border-radius:var(--radius);font-size:14px;line-height:1.8;max-width:74%;word-break:break-word;position:relative;}
+  .bubble{padding:11px 15px;border-radius:var(--radius);font-size:14px;line-height:1.8;max-width:74%;word-break:break-word}
   .bubble.ai{background:var(--white);border:1px solid var(--border);color:var(--text);border-top-left-radius:4px;white-space:normal}
   .bubble.user{background:var(--user-bubble);color:var(--user-text);border-top-right-radius:4px;white-space:pre-wrap}
   .bubble img{max-width:100%;border-radius:8px;display:block;margin-top:6px}
-  
   /* Markdown styles */
   .bubble.ai p{margin:0 0 10px}
   .bubble.ai p:last-child{margin-bottom:0}
@@ -89,36 +80,18 @@
   .bubble.ai th{background:var(--bg);font-weight:500}
   .bubble.ai strong{font-weight:600}
   .bubble.ai a{color:var(--accent);text-decoration:underline}
-
-  /* ── 思考过程 (Reasoning Box) ── */
-  .reasoning-box {margin-bottom:12px; background:var(--bg); border:1px solid var(--border); border-radius:8px; overflow:hidden;}
-  .reasoning-box summary {padding:8px 12px; font-size:12px; color:var(--muted); cursor:pointer; user-select:none; display:flex; align-items:center; gap:6px; outline:none; background:#fdfaf5; transition:background 0.15s;}
-  .reasoning-box summary:hover {background:#f4f0e6;}
-  .reasoning-box summary::-webkit-details-marker {display:none;}
-  .reasoning-box summary::before {content:'▶'; font-size:10px; transition:transform 0.2s;}
-  .reasoning-box[open] summary::before {transform:rotate(90deg);}
-  .think-icon {font-size:14px;}
-  .think-time {font-size:11px; opacity:0.7; margin-left:auto;}
-  .reasoning-content {padding:12px; font-size:13px; color:var(--muted); border-top:1px solid var(--border); background:var(--bg);}
-  .reasoning-content p {margin:0 0 8px;}
-  .reasoning-content p:last-child {margin:0;}
-
   /* Copy button */
   .msg-wrap.ai:hover .copy-btn{opacity:1}
   .copy-btn{opacity:0;transition:opacity 0.15s;background:var(--bg);border:1px solid var(--border);border-radius:7px;padding:4px 8px;font-size:11px;color:var(--muted);cursor:pointer;align-self:flex-end;margin-bottom:4px;white-space:nowrap;font-family:inherit}
   .copy-btn:hover{background:var(--white);color:var(--text)}
   .copy-btn.copied{color:var(--accent);border-color:var(--accent)}
-  .typing{display:flex;gap:4px;align-items:center;padding:8px 4px}
+  .typing{display:flex;gap:4px;align-items:center;padding:13px 15px}
   .dot{width:6px;height:6px;background:var(--muted);border-radius:50%;animation:bounce 1.2s infinite}
   .dot:nth-child(2){animation-delay:0.2s}.dot:nth-child(3){animation-delay:0.4s}
   @keyframes bounce{0%,60%,100%{transform:translateY(0)}30%{transform:translateY(-6px)}}
 
-  /* ── SVG 渲染盒子样式 ── */
-  .svg-preview-box {background: #fff; border: 1px solid var(--border); border-radius: 12px; padding: 20px; margin: 12px 0; text-align: center; box-shadow: 0 2px 8px rgba(0,0,0,0.04);}
-  .svg-preview-box svg {max-width: 100%; height: auto; max-height: 400px; display: block; margin: 0 auto;}
-
   /* ── Welcome ── */
-  .welcome{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:22px;padding:40px 24px;max-width:900px;margin:0 auto;width:100%}
+  .welcome{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:22px;padding:40px 24px;max-width:620px;margin:0 auto;width:100%}
   .welcome-title{font-size:24px;font-weight:600;text-align:center}
   .welcome-sub{font-size:13px;color:var(--muted);text-align:center;line-height:1.6}
   .suggestions{display:grid;grid-template-columns:1fr 1fr;gap:8px;width:100%}
@@ -127,14 +100,14 @@
 
   /* ── Input ── */
   .input-area{padding:10px 20px 14px;border-top:1px solid var(--border);background:var(--white);flex-shrink:0}
-  .attachments{max-width:1200px;margin:0 auto 8px;display:flex;gap:8px;flex-wrap:wrap}
+  .attachments{max-width:860px;margin:0 auto 8px;display:flex;gap:8px;flex-wrap:wrap}
   .attach-chip{display:flex;align-items:center;gap:6px;padding:5px 8px 5px 10px;background:var(--bg);border:1px solid var(--border);border-radius:8px;font-size:12px;max-width:180px}
   .attach-chip .fname{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;flex:1}
   .attach-chip .xbtn,.img-thumb .xbtn{background:none;border:none;cursor:pointer;color:var(--muted);font-size:12px;padding:0 0 0 3px}
   .img-thumb{position:relative;width:60px;height:60px;flex-shrink:0}
   .img-thumb img{width:60px;height:60px;object-fit:cover;border-radius:8px;border:1px solid var(--border)}
   .img-thumb .xbtn{position:absolute;top:-6px;right:-6px;width:17px;height:17px;background:var(--user-bubble);color:var(--user-text);border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:9px}
-  .input-wrap{max-width:1200px;margin:0 auto;background:var(--bg);border:1px solid var(--border);border-radius:16px;padding:10px 12px;transition:border-color 0.15s}
+  .input-wrap{max-width:860px;margin:0 auto;background:var(--bg);border:1px solid var(--border);border-radius:16px;padding:10px 12px;transition:border-color 0.15s}
   .input-wrap:focus-within{border-color:#b0ada6}
   .input-row{display:flex;align-items:flex-end;gap:8px}
   textarea{flex:1;background:transparent;border:none;outline:none;resize:none;font-family:inherit;font-size:14px;color:var(--text);line-height:1.6;max-height:140px;min-height:24px}
@@ -148,7 +121,7 @@
   .tool-sep{width:1px;height:14px;background:var(--border);margin:0 3px}
   .send-btn{width:32px;height:32px;background:var(--user-bubble);border:none;border-radius:9px;cursor:pointer;display:flex;align-items:center;justify-content:center;flex-shrink:0;transition:opacity 0.15s;opacity:0.3}
   .send-btn.active{opacity:1}
-  .input-hint{text-align:center;font-size:11px;color:var(--muted);margin-top:7px;max-width:1200px;margin-left:auto;margin-right:auto}
+  .input-hint{text-align:center;font-size:11px;color:var(--muted);margin-top:7px;max-width:860px;margin-left:auto;margin-right:auto}
   input[type=file]{display:none}
 
   /* ── Modals ── */
@@ -179,8 +152,17 @@
   .param-row .val{font-size:12px;color:var(--muted);width:36px;text-align:right;flex-shrink:0}
   .param-row input[type=number]{width:80px;padding:5px 8px;border:1px solid var(--border);border-radius:7px;font-size:13px;font-family:inherit;outline:none}
   .param-row input[type=number]:focus{border-color:var(--accent)}
+  .toggle-row{display:flex;align-items:center;justify-content:space-between;margin-bottom:12px}
+  .toggle-row label{font-size:13px;color:var(--text)}
+  .toggle-row span{font-size:11px;color:var(--muted)}
+  .toggle{position:relative;width:36px;height:20px;flex-shrink:0}
+  .toggle input{opacity:0;width:0;height:0}
+  .toggle-slider{position:absolute;inset:0;background:var(--border);border-radius:20px;cursor:pointer;transition:0.2s}
+  .toggle-slider:before{content:'';position:absolute;width:14px;height:14px;left:3px;top:3px;background:white;border-radius:50%;transition:0.2s}
+  .toggle input:checked+.toggle-slider{background:var(--accent)}
+  .toggle input:checked+.toggle-slider:before{transform:translateX(16px)}
 
-  .processing-msg{font-size:12px;color:var(--muted);max-width:1200px;margin:0 auto 6px;padding:0 2px}
+  .processing-msg{font-size:12px;color:var(--muted);max-width:860px;margin:0 auto 6px;padding:0 2px}
   .empty-history{padding:8px 10px;font-size:12px;color:var(--muted)}
   .model-note{font-size:11px;color:var(--muted);margin-top:4px;line-height:1.5;padding:6px 8px;background:var(--bg);border-radius:6px}
   .katex-block{overflow-x:auto;padding:6px 0;text-align:center}
@@ -200,52 +182,63 @@
       <button class="ptab" onclick="switchTab('deepseek')">DeepSeek</button>
     </div>
 
+    <!-- Claude -->
     <div class="key-section show" id="tab-claude">
       <div class="field-label">Anthropic API Key</div>
       <input class="modal-input" id="key-claude" type="password" placeholder="sk-ant-...">
       <div class="key-status" id="st-claude"></div>
-      <div class="model-note">申请地址：console.anthropic.com</div>
+      <div class="model-note">申请地址：console.anthropic.com<br>最新模型：Sonnet 4.6（推荐）· Opus 4.6（最强）· Haiku 4.5（最快最便宜）</div>
     </div>
+
+    <!-- OpenAI -->
     <div class="key-section" id="tab-openai">
       <div class="field-label">OpenAI API Key</div>
       <input class="modal-input" id="key-openai" type="password" placeholder="sk-...">
       <div class="key-status" id="st-openai"></div>
-      <div class="model-note">申请地址：platform.openai.com</div>
+      <div class="model-note">申请地址：platform.openai.com<br>最新模型：GPT-5.4（旗舰）· GPT-5.4 Pro（最强推理）· GPT-5.4 mini（性价比）· GPT-5.3（快速）</div>
     </div>
+
+    <!-- Gemini -->
     <div class="key-section" id="tab-gemini">
       <div class="field-label">Google Gemini API Key</div>
       <input class="modal-input" id="key-gemini" type="password" placeholder="AIza...">
       <div class="key-status" id="st-gemini"></div>
-      <div class="model-note">申请地址：aistudio.google.com<br>打字以“画”开头，自动调用Imagen图片生成。</div>
+      <div class="model-note">申请地址：aistudio.google.com（免费额度较多）<br>最新模型：Gemini 3.1 Pro（最强推理）· Gemini 3 Flash（速度/能力平衡）· Gemini 2.5 Flash（稳定快速）</div>
     </div>
+
+    <!-- DeepSeek -->
     <div class="key-section" id="tab-deepseek">
       <div class="field-label">DeepSeek API Key</div>
       <input class="modal-input" id="key-deepseek" type="password" placeholder="sk-...">
       <div class="key-status" id="st-deepseek"></div>
-      <div class="model-note">申请地址：platform.deepseek.com<br>V3 = 快速模式 · R1 = 深度思考模式</div>
+      <div class="model-note">申请地址：platform.deepseek.com（国内直连，无需梯子，价格最低）<br>V3 = 快速模式 · R1 = 深度思考模式</div>
     </div>
 
     <!-- 通用参数 -->
     <div class="params-section">
       <div class="params-title">模型参数</div>
+
       <div class="param-row">
         <label>温度 Temperature</label>
         <input type="range" min="0" max="2" step="0.1" id="paramTemp" oninput="document.getElementById('tempVal').textContent=this.value">
         <span class="val" id="tempVal">0.7</span>
       </div>
+      <div style="font-size:11px;color:var(--muted);margin:-8px 0 14px 112px">0 = 保守精确 · 1 = 均衡 · 2 = 创意发散</div>
+
       <div class="param-row">
         <label>最大回复长度</label>
         <input type="number" id="paramMaxTokens" min="256" max="8000" step="256" value="2000">
         <span style="font-size:12px;color:var(--muted)">tokens</span>
       </div>
     </div>
+
     <button class="modal-btn" onclick="saveKeys()">保存设置</button>
   </div>
 </div>
 
 <div class="sidebar">
   <div class="sidebar-header">
-    <div class="brand"><div class="brand-dot"></div> AI（测试2026.04.13）</div>
+    <div class="brand"><div class="brand-dot"></div>AI（测试）</div>
   </div>
   <button class="new-chat-btn" onclick="newChat()">
     <svg width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
@@ -267,28 +260,25 @@
       <div class="provider-dot" id="providerDot" style="background:#c96a3b"></div>
       <select class="model-select" id="modelSelect" onchange="onModelChange()">
         <optgroup label="── Claude (Anthropic) ──">
-          <option value="claude|claude-3-7-sonnet-20250219">Claude 3.7 Sonnet (最新推荐)</option>
-          <option value="claude|claude-3-5-sonnet-20241022">Claude 3.5 Sonnet</option>
-          <option value="claude|claude-3-5-haiku-20241022">Claude 3.5 Haiku (快速低价)</option>
-          <option value="claude|claude-3-opus-20240229">Claude 3 Opus</option>
+          <option value="claude|claude-sonnet-4-20250514">Claude Sonnet 4.6</option>
+          <option value="claude|claude-opus-4-20250514">Claude Opus 4.6</option>
+          <option value="claude|claude-haiku-4-5-20251001">Claude Haiku 4.5</option>
         </optgroup>
         <optgroup label="── OpenAI (ChatGPT) ──">
-          <option value="openai|o3-mini">o3-mini (最强推理)</option>
-          <option value="openai|o1">o1 (复杂推理)</option>
-          <option value="openai|gpt-4.5-preview">GPT-4.5 Preview</option>
-          <option value="openai|gpt-4o">GPT-4o (全能旗舰)</option>
-          <option value="openai|gpt-4o-mini">GPT-4o mini (快速性价比)</option>
+          <option value="openai|gpt-5.4">GPT-5.4</option>
+          <option value="openai|gpt-5.4-pro">GPT-5.4 Pro</option>
+          <option value="openai|gpt-5.4-mini">GPT-5.4 mini</option>
+          <option value="openai|gpt-5.3">GPT-5.3</option>
         </optgroup>
         <optgroup label="── Google Gemini ──">
-          <option value="gemini|gemini-2.5-pro">Gemini 2.5 Pro</option>
+          <option value="gemini|gemini-3.1-pro-preview">Gemini 3.1 Pro</option>
+          <option value="gemini|gemini-3-flash">Gemini 3 Flash</option>
           <option value="gemini|gemini-2.5-flash">Gemini 2.5 Flash</option>
-          <option value="gemini|gemini-2.0-flash">Gemini 2.0 Flash</option>
-          <option value="gemini|gemini-1.5-pro">Gemini 1.5 Pro</option>
-          <option value="gemini|gemini-1.5-flash">Gemini 1.5 Flash</option>
+          <option value="gemini|gemini-2.5-flash-lite">Gemini 2.5 Flash Lite</option>
         </optgroup>
         <optgroup label="── DeepSeek ──">
           <option value="deepseek|deepseek-chat">DeepSeek V3（快速）</option>
-          <option value="deepseek|deepseek-reasoner" selected>DeepSeek R1（深度思考）</option>
+          <option value="deepseek|deepseek-reasoner">DeepSeek R1（深度思考）</option>
         </optgroup>
       </select>
     </div>
@@ -301,7 +291,7 @@
     <div class="attachments" id="attachments"></div>
     <div class="input-wrap">
       <div class="input-row">
-        <textarea id="input" placeholder="输入问题，按 Enter 发送...（Gemini模式下输入“画...”可生成图片）" rows="1" onkeydown="handleKey(event)" oninput="handleInput(this)"></textarea>
+        <textarea id="input" placeholder="输入问题，按 Enter 发送..." rows="1" onkeydown="handleKey(event)" oninput="handleInput(this)"></textarea>
         <button class="send-btn" id="sendBtn" onclick="send()">
           <svg width="14" height="14" fill="none" stroke="white" stroke-width="2.5" viewBox="0 0 24 24"><line x1="12" y1="19" x2="12" y2="5"/><polyline points="5 12 12 5 19 12"/></svg>
         </button>
@@ -318,7 +308,7 @@
         <button class="tool-btn" id="searchToggleBtn" style="display:none" onclick="toggleSearch()">🔍 联网</button>
       </div>
     </div>
-    <div class="input-hint" id="inputHint">支持打字机输出 · 深度思考 · PDF/PPT解析 · SVG智能渲染 · Gemini原生画图</div>
+    <div class="input-hint" id="inputHint">支持 JPG·PNG·PDF·DOCX·XLSX·PPTX·TXT·CSV·JSON·代码 · 历史自动保存</div>
   </div>
 </div>
 
@@ -348,19 +338,6 @@ let keys={
 let params={
   temperature:parseFloat(localStorage.getItem('p_temp')||'0.7'),
   maxTokens:parseInt(localStorage.getItem('p_maxtokens')||'2000')
-};
-
-// 全局 SVG 下载函数
-window.downloadB64Svg = function(b64) {
-    const svgData = decodeURIComponent(escape(atob(b64)));
-    const blob = new Blob([svgData], {type:"image/svg+xml;charset=utf-8"});
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = 'ai_graphic.svg';
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
 };
 
 // ── 历史存储 ──
@@ -408,15 +385,6 @@ function loadSession(id){
   renderChatList();
 }
 
-function newChat() {
-  currentSession = null;
-  history = [];
-  document.getElementById('topbarTitle').textContent = '新对话';
-  document.getElementById('messages').innerHTML = '';
-  appendWelcome();
-  renderChatList();
-}
-
 function delSession(e,id){
   e.stopPropagation();
   saveSessions(loadSessions().filter(s=>s.id!==id));
@@ -436,11 +404,11 @@ function onModelChange(){
     sep.style.display='none';btn.style.display='none';searchEnabled=false;
   } else if(provider==='deepseek'){
     sep.style.display='';btn.style.display='';
-    searchEnabled=false;
+    searchEnabled=false; // DeepSeek 不支持真实联网，默认关闭
     btn.className='tool-btn disabled';
     btn.title='DeepSeek API 暂不支持真实联网搜索';
     btn.textContent='🔍 联网（不支持）';
-    btn.onclick=()=>alert('DeepSeek API 目前不支持真实联网搜索。');
+    btn.onclick=()=>alert('DeepSeek API 目前不支持真实联网搜索。\n如需联网，请切换到 OpenAI 或 Gemini 模型。');
   } else {
     sep.style.display='';btn.style.display='';
     btn.className='tool-btn'+(searchEnabled?' on':'');
@@ -463,13 +431,18 @@ function openKeys(){
     document.getElementById('st-'+p).textContent=keys[p]?'✓ 已配置':'未配置';
     document.getElementById('st-'+p).className='key-status'+(keys[p]?' ok':'');
   });
+  document.getElementById('paramTemp').value=params.temperature;
+  document.getElementById('tempVal').textContent=params.temperature;
+  document.getElementById('paramMaxTokens').value=params.maxTokens;
   document.getElementById('keyModal').style.display='flex';
 }
+
 function switchTab(p){
   document.querySelectorAll('.ptab').forEach((t,i)=>t.className='ptab'+(['claude','openai','gemini','deepseek'][i]===p?' active':''));
   document.querySelectorAll('.key-section').forEach(s=>s.className='key-section');
   document.getElementById('tab-'+p).className='key-section show';
 }
+
 function saveKeys(){
   ['claude','openai','gemini','deepseek'].forEach(p=>{const v=document.getElementById('key-'+p).value.trim();if(v){keys[p]=v;localStorage.setItem('key_'+p,v);}});
   params.temperature=parseFloat(document.getElementById('paramTemp').value);
@@ -478,25 +451,14 @@ function saveKeys(){
   localStorage.setItem('p_maxtokens',params.maxTokens);
   document.getElementById('keyModal').style.display='none';
 }
+
 function checkKey(){const{provider}=getProviderModel();if(!keys[provider]){openKeys();switchTab(provider);return false;}return true;}
 
 // ── 输入 ──
 function handleInput(el){el.style.height='auto';el.style.height=Math.min(el.scrollHeight,140)+'px';updateSendBtn();}
 function updateSendBtn(){document.getElementById('sendBtn').className='send-btn'+((document.getElementById('input').value.trim()||pendingItems.length)?' active':'');}
 function handleKey(e){if(e.key==='Enter'&&!e.shiftKey){e.preventDefault();send();}}
-
-function suggest(text){
-  const provider = getProviderModel().provider;
-  // 如果输入包含“画”但不是指 SVG 时，自动切到 gemini 帮你画真图
-  if(text.startsWith("画") && provider !== 'gemini' && !text.includes('SVG')) {
-      document.getElementById('modelSelect').value = "gemini|gemini-3.1-pro-preview";
-      onModelChange();
-  }
-  document.getElementById('input').value=text;
-  handleInput(document.getElementById('input'));
-  send();
-}
-
+function suggest(text){document.getElementById('input').value=text;handleInput(document.getElementById('input'));send();}
 function setProc(m){document.getElementById('procMsg').textContent=m||'';}
 
 // ── 文件处理 ──
@@ -505,26 +467,7 @@ async function handleFiles(files,kind){
     setProc('正在处理 '+f.name+'...');
     try{
       if(kind==='image') await new Promise((res,rej)=>{const r=new FileReader();r.onload=e=>{pendingItems.push({kind,type:f.type,data:e.target.result.split(',')[1],preview:e.target.result,name:f.name});res();};r.onerror=rej;r.readAsDataURL(f);});
-      else if (kind === 'pdf') await new Promise((res, rej) => {
-        const r = new FileReader();
-        r.onload = async e => {
-          try {
-            const typedarray = new Uint8Array(e.target.result);
-            const pdf = await pdfjsLib.getDocument(typedarray).promise;
-            let fullText = '';
-            for (let i = 1; i <= pdf.numPages; i++) {
-              const page = await pdf.getPage(i);
-              const textContent = await page.getTextContent();
-              const pageText = textContent.items.map(item => item.str).join(' ');
-              fullText += `【第${i}页】\n${pageText}\n\n`;
-            }
-            pendingItems.push({ kind, text: fullText.trim() || '未能提取文字', name: f.name });
-            res();
-          } catch (err) { rej(err); }
-        };
-        r.onerror = rej;
-        r.readAsArrayBuffer(f);
-      });
+      else if(kind==='pdf') await new Promise((res,rej)=>{const r=new FileReader();r.onload=e=>{pendingItems.push({kind,type:'application/pdf',data:e.target.result.split(',')[1],name:f.name});res();};r.onerror=rej;r.readAsDataURL(f);});
       else if(kind==='word') await new Promise((res,rej)=>{const r=new FileReader();r.onload=e=>{mammoth.extractRawText({arrayBuffer:e.target.result}).then(x=>{pendingItems.push({kind,text:x.value,name:f.name});res();}).catch(rej);};r.onerror=rej;r.readAsArrayBuffer(f);});
       else if(kind==='excel') await new Promise((res,rej)=>{const r=new FileReader();r.onload=e=>{try{const wb=XLSX.read(e.target.result,{type:'array'});let t='';wb.SheetNames.forEach(n=>{t+=`【${n}】\n${XLSX.utils.sheet_to_csv(wb.Sheets[n])}\n\n`;});pendingItems.push({kind,text:t.trim(),name:f.name});res();}catch(err){rej(err);}};r.onerror=rej;r.readAsArrayBuffer(f);});
       else if(kind==='ppt') await new Promise((res,rej)=>{const r=new FileReader();r.onload=async e=>{try{const zip=await JSZip.loadAsync(e.target.result);const sf=Object.keys(zip.files).filter(x=>x.match(/ppt\/slides\/slide\d+\.xml$/)).sort();let t='';for(let i=0;i<sf.length;i++){const xml=await zip.files[sf[i]].async('string');const plain=xml.replace(/<[^>]+>/g,' ').replace(/\s+/g,' ').trim();if(plain)t+=`【第${i+1}页】\n${plain}\n\n`;}pendingItems.push({kind,text:t.trim()||'未能提取文字',name:f.name});res();}catch(err){rej(err);}};r.onerror=rej;r.readAsArrayBuffer(f);});
@@ -543,55 +486,50 @@ function renderAttachments(){
   }).join('');
 }
 
-// ── UI 渲染核心 ──
+// ── 对话渲染 ──
+function newChat(){
+  history=[];currentSession=null;pendingItems=[];
+  renderAttachments();
+  document.getElementById('topbarTitle').textContent='新对话';
+  document.getElementById('input').value='';
+  document.getElementById('input').style.height='auto';
+  updateSendBtn();appendWelcome();renderChatList();
+}
+
 function appendWelcome(){
   document.getElementById('messages').innerHTML=`<div class="welcome" id="welcome">
     <div class="welcome-title">你好，今天需要什么帮助？</div>
-    <div class="welcome-sub">核心升级：完全修复丢失的 Gemini 绘图，融合 SVG 智能渲染！</div>
+    <div class="welcome-sub">支持 Claude · OpenAI · Gemini · DeepSeek<br>图片 · PDF · Word · Excel · PPT · 历史自动保存</div>
     <div class="suggestions">
-      <button class="sug-btn" onclick="suggest('请用 SVG 代码帮我画一个红色的苹果矢量图')">🍎 SVG 智能画图测试</button>
-      <button class="sug-btn" onclick="document.getElementById('modelSelect').value='gemini|gemini-3.1-pro-preview'; onModelChange(); suggest('画一只戴墨镜的柯基')">🎨 Gemini 原生画图</button>
-      <button class="sug-btn" onclick="suggest('请逐步思考：为什么海水是咸的？')">🧠 DeepSeek 深度逻辑</button>
-      <button class="sug-btn" onclick="suggest('用 SVG 绘制一个软件开发的流程图')">📐 绘制架构流程图</button>
+      <button class="sug-btn" onclick="suggest('帮我写一封给客户的道歉邮件，语气专业但诚恳')">✉️ 帮我写一封客户邮件</button>
+      <button class="sug-btn" onclick="suggest('用简单易懂的话解释一下什么是人工智能')">💡 解释一个复杂概念</button>
+      <button class="sug-btn" onclick="suggest('帮我列一个这周的工作计划，包括优先级排序')">📋 整理工作计划</button>
+      <button class="sug-btn" onclick="suggest('帮我把这段话翻译成英文：今天天气不错，适合外出')">🌐 中英文翻译</button>
     </div></div>`;
 }
 
-// ★★★ SVG 拦截与渲染引擎 ★★★
+function renderMsg(role,text){
+  const wrap=document.createElement('div');wrap.className='msg-wrap '+role;
+  const av=document.createElement('div');av.className='msg-avatar '+role;av.textContent=role==='ai'?'AI':'我';
+  const bubble=document.createElement('div');bubble.className='bubble '+role;bubble.textContent=text;
+  wrap.appendChild(av);wrap.appendChild(bubble);
+  document.getElementById('messages').appendChild(wrap);
+}
+
 function renderMarkdown(text){
   const blocks=[];
   let t=text;
-
-  // LaTeX 预处理
+  // 保护 \[...\]（块级公式）
   t=t.replace(/\\\[([\s\S]+?)\\\]/g,(_,m)=>{blocks.push({type:'block',src:m});return `%%LATEX_BLOCK_${blocks.length-1}%%`;});
+  // 保护 \(...\)（行内公式）
   t=t.replace(/\\\((.+?)\\\)/g,(_,m)=>{blocks.push({type:'inline',src:m});return `%%LATEX_INLINE_${blocks.length-1}%%`;});
+  // 保护 $$...$$（块级公式）
   t=t.replace(/\$\$([\s\S]+?)\$\$/g,(_,m)=>{blocks.push({type:'block',src:m});return `%%LATEX_BLOCK_${blocks.length-1}%%`;});
+  // 保护 $...$（行内公式，排除货币符号等误判）
   t=t.replace(/\$([^$\n]{1,200}?)\$/g,(_,m)=>{blocks.push({type:'inline',src:m});return `%%LATEX_INLINE_${blocks.length-1}%%`;});
-
-  // 安全构建拦截 SVG 代码块的正则，避免书写连续反引号造成文件提前截断
-  const marker = String.fromCharCode(96, 96, 96);
-  const svgRegex = new RegExp(marker + '(?:xml|html|svg)?\\n([\\s\\S]*?<svg[\\s\\S]*?<\\/svg>[\\s\\S]*?)\\n' + marker, 'gi');
-
-  t = t.replace(svgRegex, (match, svgCode) => {
-      const b64 = btoa(unescape(encodeURIComponent(svgCode.trim())));
-      const codeHtml = marked.parse(marker + 'xml\n' + svgCode.trim() + '\n' + marker);
-      return `
-        <div class="svg-preview-box">
-            <div style="width:100%; overflow:auto; padding-bottom:10px;">${svgCode}</div>
-            <button class="modal-btn" style="width:auto; padding:6px 16px; font-size:12px; margin-top:12px;" onclick="downloadB64Svg('${b64}')">📥 下载 SVG 矢量图</button>
-            <details style="margin-top:16px; font-size:12px; color:var(--muted); text-align:left;">
-                <summary style="cursor:pointer; outline:none; user-select:none;">👨‍💻 查看生成的 SVG 源码</summary>
-                <div style="margin-top:10px; background:#f0ede8; padding:8px; border-radius:6px; overflow-x:auto;">
-                    ${codeHtml}
-                </div>
-            </details>
-        </div>
-      `;
-  });
-
-  // 正常走 marked 解析剩余内容
+  // 渲染 markdown
   let html=marked.parse(t,{breaks:true,gfm:true});
-
-  // LaTeX 恢复
+  // 还原 LaTeX
   html=html.replace(/%%LATEX_BLOCK_(\d+)%%/g,(_,i)=>{
     try{return '<div class="katex-block">'+katex.renderToString(blocks[i].src,{displayMode:true,throwOnError:false})+'</div>';}
     catch{return '<code>'+blocks[i].src+'</code>';}
@@ -600,25 +538,7 @@ function renderMarkdown(text){
     try{return katex.renderToString(blocks[i].src,{displayMode:false,throwOnError:false});}
     catch{return '<code>'+blocks[i].src+'</code>';}
   });
-  
   return html;
-}
-
-function renderMsg(role,text){
-  const wrap=document.createElement('div');wrap.className='msg-wrap '+role;
-  const av=document.createElement('div');av.className='msg-avatar '+role;av.textContent=role==='ai'?'AI':'我';
-  const bubble=document.createElement('div');bubble.className='bubble '+role;
-  if(role==='ai'){
-    bubble.innerHTML = renderMarkdown(text);
-    const copyBtn=document.createElement('button');
-    copyBtn.className='copy-btn';copyBtn.textContent='复制';
-    copyBtn.onclick=()=>{navigator.clipboard.writeText(text).then(()=>{copyBtn.textContent='已复制 ✓';copyBtn.classList.add('copied');setTimeout(()=>{copyBtn.textContent='复制';copyBtn.classList.remove('copied');},2000);});};
-    wrap.appendChild(av);wrap.appendChild(bubble);wrap.appendChild(copyBtn);
-  }else{
-    bubble.textContent=text;
-    wrap.appendChild(av);wrap.appendChild(bubble);
-  }
-  document.getElementById('messages').appendChild(wrap);
 }
 
 function addMsg(role,text,items){
@@ -632,17 +552,42 @@ function addMsg(role,text,items){
       else{const c=document.createElement('span');c.style.cssText='display:inline-flex;align-items:center;gap:4px;padding:2px 7px;background:rgba(255,255,255,0.15);border-radius:5px;font-size:11px;margin:0 4px 4px 0';c.textContent=ICONS[item.kind]+' '+item.name;bubble.appendChild(c);}
     });
     if(text){
-      if(role==='ai') bubble.innerHTML=renderMarkdown(text);
+      if(role==='ai'){const d=document.createElement('div');d.innerHTML=renderMarkdown(text);bubble.appendChild(d);}
       else{const p=document.createElement('p');p.style.marginTop='6px';p.textContent=text;bubble.appendChild(p);}
     }
   }else{
-    if(role==='ai') bubble.innerHTML=renderMarkdown(text);
-    else bubble.textContent=text;
+    if(role==='ai'){bubble.innerHTML=renderMarkdown(text);}
+    else{bubble.textContent=text;}
   }
+  if(role==='ai'){
+    // 复制按钮
+    const copyBtn=document.createElement('button');
+    copyBtn.className='copy-btn';copyBtn.textContent='复制';
+    copyBtn.onclick=()=>{
+      navigator.clipboard.writeText(text).then(()=>{
+        copyBtn.textContent='已复制 ✓';copyBtn.classList.add('copied');
+        setTimeout(()=>{copyBtn.textContent='复制';copyBtn.classList.remove('copied');},2000);
+      });
+    };
+    wrap.appendChild(av);wrap.appendChild(bubble);wrap.appendChild(copyBtn);
+  }else{
+    wrap.appendChild(av);wrap.appendChild(bubble);
+  }
+  document.getElementById('messages').appendChild(wrap);
+  document.getElementById('messages').scrollTop=99999;
+}
+
+function addTyping(){
+  const w=document.getElementById('welcome');if(w)w.remove();
+  const wrap=document.createElement('div');wrap.className='msg-wrap ai';wrap.id='typing-wrap';
+  const av=document.createElement('div');av.className='msg-avatar ai';av.textContent='AI';
+  const bubble=document.createElement('div');bubble.className='bubble ai';
+  bubble.innerHTML='<div class="typing"><div class="dot"></div><div class="dot"></div><div class="dot"></div></div>';
   wrap.appendChild(av);wrap.appendChild(bubble);
   document.getElementById('messages').appendChild(wrap);
   document.getElementById('messages').scrollTop=99999;
 }
+function removeTyping(){const t=document.getElementById('typing-wrap');if(t)t.remove();}
 
 function updateList(firstMsg){
   if(!currentSession)currentSession={id:'s_'+Date.now(),title:firstMsg.slice(0,16)+(firstMsg.length>16?'...':'')};
@@ -650,313 +595,143 @@ function updateList(firstMsg){
   renderChatList();
 }
 
-// ── 建立流式 UI 框架 ──
-function createMsgStream(role) {
-  const w = document.getElementById('welcome'); if (w) w.remove();
-  const wrap = document.createElement('div'); wrap.className = 'msg-wrap ' + role;
-  const av = document.createElement('div'); av.className = 'msg-avatar ' + role; av.textContent = 'AI';
-  const bubble = document.createElement('div'); bubble.className = 'bubble ' + role;
+// ── 统一消息格式转换 ──
+// history 中每条消息结构：{role, content, _files:[{kind,type,data,text,name}]}
+// _files 只在当前会话内存中存在，不写入 localStorage
 
-  let reasoningBox = null, reasoningContentDiv = null, summary = null;
-  const mainContentDiv = document.createElement('div');
-  mainContentDiv.innerHTML = '<div class="typing"><div class="dot"></div><div class="dot"></div><div class="dot"></div></div>';
-
-  if (role === 'ai') {
-    reasoningBox = document.createElement('details');
-    reasoningBox.className = 'reasoning-box';
-    reasoningBox.style.display = 'none'; 
-    reasoningBox.open = true;
-    summary = document.createElement('summary');
-    summary.innerHTML = '<span class="think-icon">🧠</span> 正在思考过程... <span class="think-time"></span>';
-    reasoningContentDiv = document.createElement('div');
-    reasoningContentDiv.className = 'reasoning-content';
-    reasoningBox.appendChild(summary);
-    reasoningBox.appendChild(reasoningContentDiv);
-    bubble.appendChild(reasoningBox);
-  }
-
-  bubble.appendChild(mainContentDiv);
-  wrap.appendChild(av); wrap.appendChild(bubble);
-
-  let copyBtn = null;
-  if (role === 'ai') {
-    copyBtn = document.createElement('button');
-    copyBtn.className = 'copy-btn'; copyBtn.textContent = '复制';
-    wrap.appendChild(copyBtn);
-  }
-
-  document.getElementById('messages').appendChild(wrap);
-  document.getElementById('messages').scrollTop = 99999;
-
-  let rawReasoning = '';
-  let rawContent = '';
-  let startTime = Date.now();
-  let isFirstChunk = true;
-
-  return {
-    update: (rDelta, cDelta) => {
-      if (isFirstChunk && (rDelta || cDelta)) {
-        isFirstChunk = false;
-        mainContentDiv.innerHTML = ''; 
-      }
-      if (rDelta) {
-        rawReasoning += rDelta;
-        reasoningBox.style.display = 'block';
-        reasoningContentDiv.innerHTML = renderMarkdown(rawReasoning);
-        const sec = Math.floor((Date.now() - startTime) / 1000);
-        summary.innerHTML = `<span class="think-icon">🧠</span> 正在思考过程... <span class="think-time">${sec}s</span>`;
-      }
-      if (cDelta) {
-        rawContent += cDelta;
-        // 每次更新都经过一次 renderMarkdown，动态拦截和显示 SVG
-        mainContentDiv.innerHTML = renderMarkdown(rawContent);
-      }
-      const messagesDiv = document.getElementById('messages');
-      messagesDiv.scrollTop = messagesDiv.scrollHeight;
-    },
-    error: (errMsg) => {
-      if (isFirstChunk) { isFirstChunk = false; mainContentDiv.innerHTML = ''; }
-      mainContentDiv.innerHTML += `<div style="color:#c0392b;margin-top:10px;font-size:13px">❌ 出错了：${errMsg}</div>`;
-      document.getElementById('messages').scrollTop = 99999;
-    },
-    finish: () => {
-      if (copyBtn) {
-        copyBtn.onclick = () => {
-          navigator.clipboard.writeText(rawContent).then(() => {
-            copyBtn.textContent = '已复制 ✓'; copyBtn.classList.add('copied');
-            setTimeout(() => { copyBtn.textContent = '复制'; copyBtn.classList.remove('copied'); }, 2000);
-          });
-        };
-      }
-      if (reasoningBox && rawReasoning) {
-        reasoningBox.open = false;
-        const sec = Math.floor((Date.now() - startTime) / 1000);
-        summary.innerHTML = `<span class="think-icon">🧠</span> 深度思考已完成 <span class="think-time">耗时 ${sec}s</span>`;
-      }
-      return rawContent;
+function toClaudeMessages(messages){
+  return messages.map(m=>{
+    if(m._files&&m._files.length){
+      const parts=[];
+      m._files.forEach(f=>{
+        if(f.kind==='image') parts.push({type:'image',source:{type:'base64',media_type:f.type,data:f.data}});
+        else if(f.kind==='pdf') parts.push({type:'document',source:{type:'base64',media_type:'application/pdf',data:f.data}});
+        else parts.push({type:'text',text:`【文件：${f.name}】\n${f.text||''}`});
+      });
+      if(m.content) parts.push({type:'text',text:m.content});
+      return {role:m.role,content:parts};
     }
-  };
-}
-
-// ── API 请求核心 ──
-// ── 统一多模态转换逻辑 ──
-
-function toClaudeMessages(messages) {
-  return messages.map(m => {
-    if (!m.images || m.images.length === 0) return { role: m.role, content: m.content };
-    // Claude 格式：content 为数组，包含图片和文本对象
-    const contentArr = m.images.map(img => ({
-      type: "image",
-      source: { type: "base64", media_type: img.type, data: img.data }
-    }));
-    contentArr.push({ type: "text", text: m.content || "请分析这张图片" });
-    return { role: m.role, content: contentArr };
+    return {role:m.role,content:m.content};
   });
 }
 
-function toOpenAIMessages(messages) {
-  return messages.map(m => {
-    if (!m.images || m.images.length === 0) return { role: m.role, content: m.content };
-    // OpenAI/DeepSeek(兼容) 格式：使用 image_url
-    const contentArr = m.images.map(img => ({
-      type: "image_url",
-      image_url: { url: `data:${img.type};base64,${img.data}` }
-    }));
-    contentArr.push({ type: "text", text: m.content || "请分析这张图片" });
-    return { role: m.role, content: contentArr };
+function toOpenAIMessages(messages){
+  return messages.map(m=>{
+    if(m._files&&m._files.length){
+      const parts=[];
+      m._files.forEach(f=>{
+        if(f.kind==='image') parts.push({type:'image_url',image_url:{url:`data:${f.type};base64,${f.data}`}});
+        else if(f.kind==='pdf') parts.push({type:'text',text:`【PDF文件：${f.name}（OpenAI 暂不支持直接读取 PDF，以下为文件名提示）】`});
+        else parts.push({type:'text',text:`【文件：${f.name}】\n${f.text||''}`});
+      });
+      if(m.content) parts.push({type:'text',text:m.content});
+      return {role:m.role,content:parts};
+    }
+    return {role:m.role,content:m.content};
   });
 }
 
-function toGeminiContents(messages) {
-  return messages.map(m => {
-    const parts = [];
-    if (m.images && m.images.length > 0) {
-      // Gemini 格式：parts 数组中包含 inlineData
-      m.images.forEach(img => {
-        parts.push({ inlineData: { mimeType: img.type, data: img.data } });
+function toGeminiContents(messages){
+  return messages.map(m=>{
+    const parts=[];
+    if(m._files&&m._files.length){
+      m._files.forEach(f=>{
+        if(f.kind==='image') parts.push({inline_data:{mime_type:f.type,data:f.data}});
+        else if(f.kind==='pdf') parts.push({inline_data:{mime_type:'application/pdf',data:f.data}});
+        else parts.push({text:`【文件：${f.name}】\n${f.text||''}`});
       });
     }
-    parts.push({ text: m.content || "请分析这张图片" });
-    return { role: m.role === 'assistant' ? 'model' : 'user', parts: parts };
+    if(m.content) parts.push({text:m.content});
+    return {role:m.role==='assistant'?'model':'user',parts};
   });
 }
 
-function toDeepSeekMessages(messages) {
-  // 假设你的 DeepSeek 渠道支持视觉（兼容 OpenAI 格式）
-  return toOpenAIMessages(messages);
-}
-
-async function fetchSSE(url, options, onMessage) {
-  const res = await fetch(url, options);
-  if (!res.ok) throw new Error(await res.text());
-  const reader = res.body.getReader();
-  const decoder = new TextDecoder();
-  let buffer = '';
-  while (true) {
-    const { done, value } = await reader.read();
-    if (done) break;
-    buffer += decoder.decode(value, { stream: true });
-    const lines = buffer.split('\n');
-    buffer = lines.pop(); 
-    for (let line of lines) {
-      if (line.startsWith('data: ')) {
-        const dataStr = line.slice(6).trim();
-        if (dataStr === '[DONE]') continue;
-        try { onMessage(JSON.parse(dataStr)); } catch (e) {}
-      }
+function toDeepSeekMessages(messages){
+  // DeepSeek 不支持图片/PDF，文字文件以文本形式传入
+  return messages.map(m=>{
+    if(m._files&&m._files.length){
+      let extra='';
+      m._files.forEach(f=>{
+        if(f.kind==='image') extra+=`\n【图片文件：${f.name}（DeepSeek 不支持图片输入）】`;
+        else if(f.kind==='pdf') extra+=`\n【PDF文件：${f.name}（DeepSeek 不支持 PDF 输入）】`;
+        else extra+=`\n【文件：${f.name}】\n${f.text||''}`;
+      });
+      return {role:m.role,content:(m.content||'')+extra};
     }
-  }
+    return {role:m.role,content:m.content};
+  });
 }
 
-// ★★★ Gemini 图片生成函数调用 ★★★
-async function callGeminiImageGeneration(prompt) {
-  const model = 'imagen-3.0-generate-001'; 
-  const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:predict?key=${keys.gemini}`;
-  const body = { instances: [{ prompt: prompt }], parameters: { sampleCount: 1, outputOptions: { mimeType: "image/jpeg" } } };
-  const res = await fetch(url, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
-  const data = await res.json();
-  if (data.error) throw new Error(data.error.message);
-  const base64Image = data.predictions?.[0]?.bytesBase64Encoded;
-  if (!base64Image) throw new Error("未返回图像数据，可能是由于安全拦截。");
-  return `![生成的图片](data:image/jpeg;base64,${base64Image})`;
+// ── API 调用 ──
+async function callClaude(model,messages){
+  const msgs=toClaudeMessages(messages);
+  const res=await fetch('https://api.anthropic.com/v1/messages',{method:'POST',headers:{'Content-Type':'application/json','x-api-key':keys.claude,'anthropic-version':'2023-06-01','anthropic-dangerous-direct-browser-access':'true'},body:JSON.stringify({model,max_tokens:params.maxTokens,temperature:params.temperature,system:'你是一个专业、友善的AI助手，用简洁清晰的中文回答问题。',messages:msgs})});
+  const data=await res.json();
+  if(data.error)throw new Error(data.error.message);
+  return data.content?.[0]?.text||'';
 }
 
-async function callClaudeStream(model, messages, onUpdate) {
-  const body = { model, max_tokens: params.maxTokens, temperature: params.temperature, system: '你是一个专业、友善的AI助手，用简洁清晰的中文回答问题。', stream: true, messages: toClaudeMessages(messages) };
-  await fetchSSE('https://api.anthropic.com/v1/messages', { method: 'POST', headers: { 'Content-Type': 'application/json', 'x-api-key': keys.claude, 'anthropic-version': '2023-06-01', 'anthropic-dangerous-direct-browser-access': 'true' }, body: JSON.stringify(body) }, (data) => { if (data.type === 'content_block_delta' && data.delta && data.delta.text) onUpdate('', data.delta.text); });
+async function callOpenAI(model,messages){
+  const body={model,max_tokens:params.maxTokens,temperature:params.temperature,messages:[{role:'system',content:'你是一个专业、友善的AI助手，用简洁清晰的中文回答问题。'},...toOpenAIMessages(messages)]};
+  if(searchEnabled) body.tools=[{type:'web_search_preview'}];
+  const res=await fetch('https://api.openai.com/v1/chat/completions',{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+keys.openai},body:JSON.stringify(body)});
+  const data=await res.json();
+  if(data.error)throw new Error(data.error.message);
+  return data.choices?.[0]?.message?.content||'';
 }
 
-async function callOpenAIStream(model, messages, onUpdate) {
-  const body = { model, max_tokens: params.maxTokens, temperature: params.temperature, stream: true, messages: [{role:'system',content:'你是一个专业、友善的AI助手。'}, ...toOpenAIMessages(messages)] };
-  await fetchSSE('https://api.openai.com/v1/chat/completions', { method: 'POST', headers: {'Content-Type': 'application/json', 'Authorization': 'Bearer ' + keys.openai}, body: JSON.stringify(body) }, (data) => { const delta = data.choices?.[0]?.delta; if (delta) onUpdate(delta.reasoning_content || '', delta.content || ''); });
+async function callGemini(model,messages){
+  const body={contents:toGeminiContents(messages),generationConfig:{temperature:params.temperature,maxOutputTokens:params.maxTokens}};
+  if(searchEnabled) body.tools=[{google_search:{}}];
+  const res=await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${keys.gemini}`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});
+  const data=await res.json();
+  if(data.error)throw new Error(data.error.message);
+  return data.candidates?.[0]?.content?.parts?.[0]?.text||'';
 }
 
-async function callGeminiStream(model, messages, onUpdate) {
-  const body = { contents: toGeminiContents(messages), generationConfig: {temperature: params.temperature, maxOutputTokens: params.maxTokens} };
-  await fetchSSE(`https://generativelanguage.googleapis.com/v1beta/models/${model}:streamGenerateContent?alt=sse&key=${keys.gemini}`, { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify(body) }, (data) => { const text = data.candidates?.[0]?.content?.parts?.[0]?.text || ''; if (text) onUpdate('', text); });
+async function callDeepSeek(model,messages){
+  const body={model,max_tokens:params.maxTokens,temperature:params.temperature,messages:[{role:'system',content:'你是一个专业、友善的AI助手，用简洁清晰的中文回答问题。'},...toDeepSeekMessages(messages)]};
+  const res=await fetch('https://api.deepseek.com/v1/chat/completions',{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+keys.deepseek},body:JSON.stringify(body)});
+  const data=await res.json();
+  if(data.error)throw new Error(data.error.message);
+  return data.choices?.[0]?.message?.content||'';
 }
 
-async function callDeepSeekStream(model, messages, onUpdate) {
-  const body = { model, max_tokens: params.maxTokens, temperature: params.temperature, stream: true, messages: [{role:'system',content:'你是一个专业、友善的AI助手。'}, ...toDeepSeekMessages(messages)] };
-  await fetchSSE('https://api.deepseek.com/chat/completions', { method: 'POST', headers: {'Content-Type': 'application/json', 'Authorization': 'Bearer ' + keys.deepseek}, body: JSON.stringify(body) }, (data) => { const delta = data.choices?.[0]?.delta; if (delta) onUpdate(delta.reasoning_content || '', delta.content || ''); });
-}
-
-// ── 核心发送流控制 ──
 async function send(){
   if(isLoading)return;
-  if(!checkKey()) return;
-  
+  if(!checkKey())return;
   const input=document.getElementById('input');
   const text=input.value.trim();
   if(!text&&!pendingItems.length)return;
-  
-  input.value=''; input.style.height='auto';
+  input.value='';input.style.height='auto';
   document.getElementById('sendBtn').className='send-btn';
   isLoading=true;
-  
-  const items=[...pendingItems]; pendingItems=[]; renderAttachments();
+  const items=[...pendingItems];pendingItems=[];renderAttachments();
   addMsg('user',text,items);
   updateList(text||(items[0]?items[0].name:'文件'));
-
-// ── 进阶核心发送逻辑（保留了文档解析，增加了图片 Payload） ──
-  let finalPrompt = text;
-  let imagePayloads = []; 
-
-  if (items.length > 0) {
-    items.forEach(item => {
-      // 1. 保留原有功能：如果是 PDF/Word/Excel 提取出的文字，依然拼接到 Prompt 里
-      if (item.text) {
-        finalPrompt += `\n\n【文件：${item.name} 内容如下】\n${item.text}`;
-      } 
-      // 2. 增强功能：如果是图片，不仅记录名称，还将真实的 Base64 数据存入数组
-      else if (item.kind === 'image') {
-        finalPrompt += `\n\n【用户上传了一张图片：${item.name}】`;
-        imagePayloads.push(item); 
-      }
-    });
-  }
-
-  // 3. 构建历史记录对象
-  const historyEntry = {
-    role: 'user',
-    content: finalPrompt || (imagePayloads.length > 0 ? "请分析图片" : "分析附件")
-  };
-
-  // 4. 如果有图片，将数据挂载到 images 属性上，供 API 转换函数使用
-  if (imagePayloads.length > 0) {
-    historyEntry.images = imagePayloads;
-  }
-
-  history.push(historyEntry);
-  
- 
+  // 把文件数据存进 history（_files 只在内存里，不写 localStorage）
+  const entry={role:'user',content:text||'请分析上传的文件'};
+  if(items.length) entry._files=items.map(f=>({kind:f.kind,type:f.type||'',data:f.data||'',text:f.text||'',name:f.name,preview:f.preview||''}));
+  history.push(entry);
+  addTyping();
   const{provider,model}=getProviderModel();
-
-  const streamUI = createMsgStream('ai');
-
   try{
-      // ★★★ Gemini 原生画图指令拦截 ★★★
-      // 当选择 Gemini，且输入以“画”开头，且明确没有提到 SVG 时，去调原生的 Imagen 3 模型
-      const isImageReq = provider === 'gemini' && /^(画|生成一张|生成图片)/.test(text) && !/svg/i.test(text);
-
-      if (isImageReq) {
-          // 走图片生成路线
-          streamUI.update('', '🎨 *正在调用 Imagen 模型为您绘制，通常需要几秒钟，请稍候...*\n\n');
-          const cleanPrompt = text.replace(/^(画个|画一只|画一个|画|生成图片)\s*/, '');
-          const imgMarkdown = await callGeminiImageGeneration(cleanPrompt || text);
-          
-          streamUI.update('', imgMarkdown);
-          const finalContent = streamUI.finish();
-          history.push({role:'assistant', content: finalContent});
-      } else {
-          // 走普通的文本回答路线 (包含 SVG 的输出也会在这个分支里被智能渲染)
-          const onUpdate = (rDelta, cDelta) => streamUI.update(rDelta, cDelta);
-
-          if(provider==='claude') await callClaudeStream(model, history, onUpdate);
-          else if(provider==='openai') await callOpenAIStream(model, history, onUpdate);
-          else if(provider==='gemini') await callGeminiStream(model, history, onUpdate);
-          else if(provider==='deepseek') await callDeepSeekStream(model, history, onUpdate);
-
-          const finalContent = streamUI.finish();
-          history.push({role:'assistant', content:finalContent});
-      }
-    
-    saveCurrentSession(); 
-    renderChatList();
+    let reply='';
+    if(provider==='claude') reply=await callClaude(model,history);
+    else if(provider==='openai') reply=await callOpenAI(model,history);
+    else if(provider==='gemini') reply=await callGemini(model,history);
+    else if(provider==='deepseek') reply=await callDeepSeek(model,history);
+    removeTyping();
+    addMsg('ai',reply);
+    history.push({role:'assistant',content:reply});
+    saveCurrentSession();renderChatList();
   }catch(e){
-    streamUI.error(e.message);
+    removeTyping();
+    addMsg('ai','出错了：'+e.message+'\n\n请检查：\n1. 梯子是否开启\n2. API Key 是否正确（点左下角「设置 Key」）\n3. 账户是否有余额');
   }
-  isLoading=false;
+  isLoading=false;document.getElementById('messages').scrollTop=99999;
 }
-// ── 监听输入框的粘贴事件 ──
-document.getElementById('input').addEventListener('paste', function(e) {
-  const clipboardData = e.clipboardData || window.clipboardData;
-  if (!clipboardData) return;
 
-  const items = clipboardData.items;
-  const imageFiles = [];
-
-  for (let i = 0; i < items.length; i++) {
-    // 检查剪贴板内容是否为图片
-    if (items[i].type.indexOf('image') !== -1) {
-      const file = items[i].getAsFile();
-      if (file) {
-        // 为粘贴的图片生成一个默认文件名
-        const ext = file.type.split('/')[1] || 'png';
-        const newFile = new File([file], `paste_${Date.now()}.${ext}`, { type: file.type });
-        imageFiles.push(newFile);
-      }
-    }
-  }
-
-  if (imageFiles.length > 0) {
-    // 阻止默认粘贴行为（防止某些浏览器在 textarea 里插入奇怪的路径）
-    e.preventDefault();
-    // 触发已有的文件处理流程，将图片加入 pendingItems 并在输入框上方预览
-    handleFiles(imageFiles, 'image');
-  }
-});
-  
 init();
 </script>
 </body>
