@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>AI（界面还在测试）</title>
+<title>407AI（界面还在测试）</title>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/mammoth/1.6.0/mammoth.browser.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
@@ -302,7 +302,7 @@
 
 <div class="sidebar">
   <div class="sidebar-header">
-    <div class="brand"><div class="brand-dot"></div>>AI（界面还在测试）</div>
+    <div class="brand"><div class="brand-dot"></div>407AI（界面还在测试）</div>
   </div>
   <button class="new-chat-btn" onclick="newChat()">
     <svg width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
@@ -843,14 +843,16 @@ function toDeepSeekMessages(messages){
 
 async function callClaude(model,messages){
   const msgs=toClaudeMessages(messages);
-  const res=await fetch('https://api.anthropic.com/v1/messages',{method:'POST',headers:{'Content-Type':'application/json','x-api-key':keys.claude,'anthropic-version':'2023-06-01','anthropic-dangerous-direct-browser-access':'true'},body:JSON.stringify({model,max_tokens:params.maxTokens,temperature:params.temperature,system:'你是一个专业、友善的AI助手，用简洁清晰的中文回答问题。',messages:msgs})});
+  // Claude 强制要求该参数，8192 是目前的极限安全值
+  const res=await fetch('https://api.anthropic.com/v1/messages',{method:'POST',headers:{'Content-Type':'application/json','x-api-key':keys.claude,'anthropic-version':'2023-06-01','anthropic-dangerous-direct-browser-access':'true'},body:JSON.stringify({model, max_tokens: 8192, temperature:params.temperature,system:'你是一个专业、友善的AI助手，用简洁清晰的中文回答问题。',messages:msgs})});
   const data=await res.json();
   if(data.error)throw new Error(data.error.message);
   return { content: data.content?.[0]?.text||'', reasoning: '' };
 }
 
 async function callOpenAI(model,messages){
-  const body={model,max_tokens:params.maxTokens,temperature:params.temperature,messages:[{role:'system',content:'你是一个专业、友善的AI助手，用简洁清晰的中文回答问题。'},...toOpenAIMessages(messages)]};
+  // OpenAI 不传 max_tokens，默认允许输出到模型极限
+  const body={model, temperature:params.temperature, messages:[{role:'system',content:'你是一个专业、友善的AI助手，用简洁清晰的中文回答问题。'},...toOpenAIMessages(messages)]};
   if(searchEnabled) body.tools=[{type:'web_search_preview'}];
   const res=await fetch('https://api.openai.com/v1/chat/completions',{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+keys.openai},body:JSON.stringify(body)});
   const data=await res.json();
@@ -859,7 +861,8 @@ async function callOpenAI(model,messages){
 }
 
 async function callGemini(model,messages){
-  const body={contents:toGeminiContents(messages),generationConfig:{temperature:params.temperature,maxOutputTokens:params.maxTokens}};
+  // Gemini 不传 maxOutputTokens，默认允许输出到模型极限
+  const body={contents:toGeminiContents(messages),generationConfig:{temperature:params.temperature}};
   if(searchEnabled) body.tools=[{google_search:{}}];
   const res=await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${keys.gemini}`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});
   const data=await res.json();
@@ -868,13 +871,14 @@ async function callGemini(model,messages){
 }
 
 async function callDeepSeek(model,messages){
-  const body={model,max_tokens:params.maxTokens,temperature:params.temperature,messages:[{role:'system',content:'你是一个专业、友善的AI助手，用简洁清晰的中文回答问题。'},...toDeepSeekMessages(messages)]};
+  // DeepSeek 最大支持 8192，强制指定最高值防止其默认截断
+  const body={model, max_tokens: 8192, temperature:params.temperature,messages:[{role:'system',content:'你是一个专业、友善的AI助手，用简洁清晰的中文回答问题。'},...toDeepSeekMessages(messages)]};
   const res=await fetch('https://api.deepseek.com/v1/chat/completions',{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+keys.deepseek},body:JSON.stringify(body)});
   const data=await res.json();
   if(data.error)throw new Error(data.error.message);
   return { 
     content: data.choices?.[0]?.message?.content||'', 
-    reasoning: data.choices?.[0]?.message?.reasoning_content||'' // 抓取思考过程
+    reasoning: data.choices?.[0]?.message?.reasoning_content||'' 
   };
 }
 
