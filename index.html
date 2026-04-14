@@ -977,7 +977,8 @@ async function fetchReply() {
     else if(provider==='local') res=await callLocal(history);
     
     removeTyping();
-    addMsg('ai', res.content, null, res.reasoning); 
+    addMsg('ai', res.content, null, res.reasoning);
+    setTimeout(renderMermaid, 200);
     history.push({role:'assistant', content:res.content, reasoning:res.reasoning}); 
     saveCurrentSession();
     renderChatList();
