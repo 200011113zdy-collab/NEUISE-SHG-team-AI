@@ -256,6 +256,8 @@
   .code-wrap:hover .code-toolbar{opacity:1}
   .code-tool-btn{background:var(--bg);border:1px solid var(--border);border-radius:5px;padding:3px 8px;font-size:11px;color:var(--muted);cursor:pointer;font-family:inherit}
   .code-tool-btn:hover{background:var(--white);color:var(--text)}
+  .html-preview{width:100%;border:1px solid var(--border);border-radius:8px;margin-top:8px;background:white;min-height:120px;display:none}
+  .html-preview.show{display:block}
 </style>
 <script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"></script>
 </head>
@@ -737,7 +739,8 @@ function renderMarkdown(text){
     const extMap={python:'py',javascript:'js',js:'js',html:'html',css:'css',java:'java',cpp:'cpp',c:'c',typescript:'ts',bash:'sh',shell:'sh',sql:'sql',json:'json'};
     const ext=extMap[lang]||lang||'txt';
     const enc=encodeURIComponent(raw);
-    return '<div class="code-wrap"><pre><code class="language-'+lang+'">'+code+'</code></pre><div class="code-toolbar"><button class="code-tool-btn" onclick="navigator.clipboard.writeText(decodeURIComponent(\''+enc+'\'))">复制</button><button class="code-tool-btn" onclick="dlCode(decodeURIComponent(\''+enc+'\'),\'file.'+ext+'\')">下载</button></div></div>';
+    const iframeBtn = lang==='html' ? '<button class="code-tool-btn" onclick="runHtml(this,decodeURIComponent(\''+enc+'\'))">运行</button>' : '';
+    return '<div class="code-wrap"><pre><code class="language-'+lang+'">'+code+'</code></pre><div class="code-toolbar"><button class="code-tool-btn" onclick="navigator.clipboard.writeText(decodeURIComponent(\''+enc+'\'))">复制</button><button class="code-tool-btn" onclick="dlCode(decodeURIComponent(\''+enc+'\'),\'file.'+ext+'\')">下载</button>'+iframeBtn+'</div><iframe class="html-preview" sandbox="allow-scripts"></iframe></div>';
   });
   return html;
 }
@@ -745,6 +748,20 @@ function dlCode(code,filename){
   const a=document.createElement('a');
   a.href=URL.createObjectURL(new Blob([code],{type:'text/plain'}));
   a.download=filename;a.click();
+}
+function runHtml(btn,code){
+  const wrap=btn.closest('.code-wrap');
+  const iframe=wrap.querySelector('.html-preview');
+  if(iframe.classList.contains('show')){
+    iframe.classList.remove('show');
+    iframe.srcdoc='';
+    btn.textContent='运行';
+  } else {
+    iframe.srcdoc=code;
+    iframe.classList.add('show');
+    iframe.style.height='400px';
+    btn.textContent='关闭';
+  }
 }
 
 function addMsg(role, text, items, reasoning){
@@ -1078,10 +1095,9 @@ function translateError(errMsg) {
 mermaid.initialize({startOnLoad:false,theme:'neutral'});
 function renderMermaid(){
   document.querySelectorAll('.mermaid:not([data-processed])').forEach(el=>{
-    const code=el.innerHTML.replace(/&amp;/g,'&').replace(/&lt;/g,'<').replace(/&gt;/g,'>').replace(/&quot;/g,'"').replace(/&#39;/g,"'");
-    mermaid.render('mg'+Math.random().toString(36).slice(2),code).then(({svg})=>{
+    mermaid.render('mg'+Math.random().toString(36).slice(2),el.textContent).then(({svg})=>{
       el.innerHTML=svg;el.setAttribute('data-processed','true');
-    }).catch(e=>console.log('mermaid error',e));
+    }).catch(()=>{});
   });
 }
 init();
