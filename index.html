@@ -360,6 +360,9 @@
           <option value="gemini|gemini-2.5-flash">Gemini 2.5 Flash</option>
           <option value="gemini|gemini-2.5-flash-lite">Gemini 2.5 Flash Lite</option>
         </optgroup>
+        <optgroup label="── 本地 ──">
+        <option value="local|claude-pro">本地 Claude Pro（自己的账号）</option>
+        </optgroup>
         <optgroup label="── DeepSeek ──">
           <option value="deepseek|deepseek-chat">DeepSeek V3（快速）</option>
           <option value="deepseek|deepseek-reasoner">DeepSeek R1（深度思考）</option>
@@ -913,7 +916,17 @@ async function callDeepSeek(model,messages){
     reasoning: data.choices?.[0]?.message?.reasoning_content||'' 
   };
 }
-
+async function callLocal(messages){
+  const last = messages[messages.length-1];
+  const question = (typeof last.content === 'string') ? last.content : '请回答';
+  const res = await fetch('http://localhost:8765', {
+    method: 'POST',
+    headers: {'Content-Type':'application/json'},
+    body: JSON.stringify({q: question})
+  });
+  const data = await res.json();
+  return { content: data.answer || '', reasoning: '' };
+}
 // ── 修改 4：更新 send 函数，接收双参数 ──
 
 // 新增 1：提取出通用的 API 请求核心逻辑
@@ -925,6 +938,7 @@ async function fetchReply() {
     else if(provider==='openai') res=await callOpenAI(model,history);
     else if(provider==='gemini') res=await callGemini(model,history);
     else if(provider==='deepseek') res=await callDeepSeek(model,history);
+    else if(provider==='local') res=await callLocal(history);
     
     removeTyping();
     addMsg('ai', res.content, null, res.reasoning); 
