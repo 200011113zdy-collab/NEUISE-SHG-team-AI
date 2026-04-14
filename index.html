@@ -956,6 +956,7 @@ async function fetchReply() {
     
     addMsg('ai', errorText);
   }
+  isLoading = false;  // 加这行，放在函数最末尾
 }
 
 // 修改 2：现在的 send 变得非常干净
