@@ -250,7 +250,14 @@
   .empty-history{padding:8px 10px;font-size:12px;color:var(--muted)}
   .model-note{font-size:11px;color:var(--muted);margin-top:4px;line-height:1.5;padding:6px 8px;background:var(--bg);border-radius:6px}
   .katex-block{overflow-x:auto;padding:6px 0;text-align:center}
+.mermaid-wrap{background:var(--white);border:1px solid var(--border);border-radius:8px;padding:12px;margin:10px 0;overflow-x:auto}
+  .code-wrap{position:relative;margin:10px 0}
+  .code-toolbar{position:absolute;top:6px;right:6px;display:flex;gap:4px;opacity:0;transition:opacity 0.15s}
+  .code-wrap:hover .code-toolbar{opacity:1}
+  .code-tool-btn{background:var(--bg);border:1px solid var(--border);border-radius:5px;padding:3px 8px;font-size:11px;color:var(--muted);cursor:pointer;font-family:inherit}
+  .code-tool-btn:hover{background:var(--white);color:var(--text)}
 </style>
+<script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"></script>
 </head>
 <body>
 
@@ -485,6 +492,7 @@ function loadSession(id){
   });
   
   document.getElementById('messages').scrollTop=99999;
+  setTimeout(renderMermaid,100);
   renderChatList();
 }
 
@@ -694,6 +702,10 @@ function renderMsg(role,text){
 }
 
 function renderMarkdown(text){
+  const mermaidBlocks=[];
+  text=text.replace(/```mermaid\n([\s\S]+?)\n```/g,(_,c)=>{mermaidBlocks.push(c);return '%%MERMAID_'+(mermaidBlocks.length-1)+'%%';});
+  const svgBlocks=[];
+  text=text.replace(/```svg\n([\s\S]+?)\n```/g,(_,c)=>{svgBlocks.push(c);return '%%SVG_'+(svgBlocks.length-1)+'%%';});
   const blocks=[];
   let t=text;
   // 保护 \[...\]（块级公式）
@@ -715,7 +727,24 @@ function renderMarkdown(text){
     try{return katex.renderToString(blocks[i].src,{displayMode:false,throwOnError:false});}
     catch{return '<code>'+blocks[i].src+'</code>';}
   });
+  html=html.replace(/%%MERMAID_(\d+)%%/g,(_,i)=>{
+    const id='mg'+Date.now()+i;
+    return '<div class="mermaid-wrap"><div class="mermaid" id="'+id+'">'+mermaidBlocks[i]+'</div></div>';
+  });
+  html=html.replace(/%%SVG_(\d+)%%/g,(_,i)=>'<div class="mermaid-wrap">'+svgBlocks[i]+'</div>');
+  html=html.replace(/<pre><code class="language-(\w+)">(([\s\S]*?))<\/code><\/pre>/g,(_,lang,code)=>{
+    const raw=code.replace(/&amp;/g,'&').replace(/&lt;/g,'<').replace(/&gt;/g,'>').replace(/&quot;/g,'"');
+    const extMap={python:'py',javascript:'js',js:'js',html:'html',css:'css',java:'java',cpp:'cpp',c:'c',typescript:'ts',bash:'sh',shell:'sh',sql:'sql',json:'json'};
+    const ext=extMap[lang]||lang||'txt';
+    const enc=encodeURIComponent(raw);
+    return '<div class="code-wrap"><pre><code class="language-'+lang+'">'+code+'</code></pre><div class="code-toolbar"><button class="code-tool-btn" onclick="navigator.clipboard.writeText(decodeURIComponent(\''+enc+'\'))">复制</button><button class="code-tool-btn" onclick="dlCode(decodeURIComponent(\''+enc+'\'),\'file.'+ext+'\')">下载</button></div></div>';
+  });
   return html;
+}
+function dlCode(code,filename){
+  const a=document.createElement('a');
+  a.href=URL.createObjectURL(new Blob([code],{type:'text/plain'}));
+  a.download=filename;a.click();
 }
 
 function addMsg(role, text, items, reasoning){
@@ -1045,6 +1074,14 @@ function translateError(errMsg) {
   return '未知错误，建议翻译一下下面的原始信息。';
 }
 
+mermaid.initialize({startOnLoad:false,theme:'neutral'});
+function renderMermaid(){
+  document.querySelectorAll('.mermaid:not([data-processed])').forEach(el=>{
+    mermaid.render('mg'+Math.random().toString(36).slice(2),el.textContent).then(({svg})=>{
+      el.innerHTML=svg;el.setAttribute('data-processed','true');
+    }).catch(()=>{});
+  });
+}
 init();
 </script>
 </body>
