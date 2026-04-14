@@ -1078,9 +1078,10 @@ function translateError(errMsg) {
 mermaid.initialize({startOnLoad:false,theme:'neutral'});
 function renderMermaid(){
   document.querySelectorAll('.mermaid:not([data-processed])').forEach(el=>{
-    mermaid.render('mg'+Math.random().toString(36).slice(2),el.textContent).then(({svg})=>{
+    const code=el.innerHTML.replace(/&amp;/g,'&').replace(/&lt;/g,'<').replace(/&gt;/g,'>').replace(/&quot;/g,'"').replace(/&#39;/g,"'");
+    mermaid.render('mg'+Math.random().toString(36).slice(2),code).then(({svg})=>{
       el.innerHTML=svg;el.setAttribute('data-processed','true');
-    }).catch(()=>{});
+    }).catch(e=>console.log('mermaid error',e));
   });
 }
 init();
