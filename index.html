@@ -555,7 +555,7 @@ function saveKeys(){
   document.getElementById('keyModal').style.display='none';
 }
 
-function checkKey(){const{provider}=getProviderModel();if(!keys[provider]){openKeys();switchTab(provider);return false;}return true;}
+function checkKey(){const{provider}=getProviderModel();if(provider==='local') return true;  // 加这行if(!keys[provider]){openKeys();switchTab(provider);return false;}return true;}
 
 // ── 输入 ──
 function handleInput(el){
