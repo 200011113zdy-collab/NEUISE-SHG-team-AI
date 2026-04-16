@@ -114,6 +114,14 @@
   .model-select-wrap:hover{border-color:var(--accent)}
   .provider-dot{width:7px;height:7px;border-radius:50%;flex-shrink:0}
   .model-select{background:transparent;border:none;outline:none;font-size:12px;font-weight:500;cursor:pointer;font-family:inherit;color:var(--text);padding:0}
+  /* ── 余额徽章 ── */
+  .balance-badge{display:none;align-items:center;gap:5px;background:var(--bg);border:1px solid var(--border);border-radius:20px;padding:4px 10px;font-size:12px;color:var(--muted);transition:all 0.2s;white-space:nowrap}
+  .balance-badge.show{display:flex}
+  .balance-badge.ok{border-color:#b7e0c0;background:#f2fbf4;color:#2d7a3a}
+  .balance-badge.warn{border-color:#f5d08a;background:#fffbf0;color:#a07020}
+  .balance-badge.err{border-color:var(--border);color:var(--muted)}
+  .balance-badge a{color:inherit;text-decoration:none;opacity:0.75;font-size:11px}
+  .balance-badge a:hover{opacity:1;text-decoration:underline}
 
   /* ── Messages ── */
   .messages{flex:1;overflow-y:auto;padding:28px 0;display:flex;flex-direction:column}
@@ -258,6 +266,33 @@
   .code-tool-btn:hover{background:var(--white);color:var(--text)}
   .html-preview{width:100%;border:1px solid var(--border);border-radius:8px;margin-top:8px;background:white;min-height:120px;display:none}
   .html-preview.show{display:block}
+  /* ── 花费分析 ── */
+  .cost-summary-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
+  .cost-card{background:var(--bg);border:1px solid var(--border);border-radius:10px;padding:12px 14px;text-align:center}
+  .cost-card .cv{font-size:20px;font-weight:600;color:var(--text);margin-bottom:2px}
+  .cost-card .cl{font-size:11px;color:var(--muted)}
+  .cost-card.accent{background:var(--accent-light);border-color:var(--accent)}
+  .cost-card.accent .cv{color:var(--accent)}
+  .cost-row{background:var(--white);border:1px solid var(--border);border-radius:9px;padding:9px 13px;display:flex;align-items:center;gap:10px;font-size:13px}
+  .cost-row-title{flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--text)}
+  .cost-row-meta{font-size:11px;color:var(--muted);white-space:nowrap}
+  .cost-row-price{font-weight:600;color:var(--accent);white-space:nowrap;min-width:54px;text-align:right}
+  .cost-row-model{font-size:10px;background:var(--bg);border-radius:4px;padding:2px 6px;color:var(--muted);white-space:nowrap}
+  /* ── 团队视图 ── */
+  .team-row{background:var(--white);border:1px solid var(--border);border-radius:10px;padding:10px 14px;display:flex;align-items:center;gap:12px}
+  .team-avatar{width:32px;height:32px;border-radius:50%;background:var(--accent-light);color:var(--accent);font-size:13px;font-weight:600;display:flex;align-items:center;justify-content:center;flex-shrink:0}
+  .team-name{font-size:13px;font-weight:500;flex:1}
+  .team-meta{font-size:11px;color:var(--muted)}
+  .team-cost{font-size:15px;font-weight:600;color:var(--accent)}
+  .team-bar-wrap{height:4px;background:var(--border);border-radius:99px;margin-top:4px;overflow:hidden}
+  .team-bar{height:100%;border-radius:99px;background:var(--accent);transition:width 0.4s}
+  .sync-status{font-size:11px;padding:4px 10px;border-radius:20px;display:inline-flex;align-items:center;gap:5px}
+  .sync-status.ok{background:#f2fbf4;color:#2d7a3a;border:1px solid #b7e0c0}
+  .sync-status.err{background:#fff3f0;color:#c0392b;border:1px solid #f5c0b8}
+  .sync-status.ing{background:var(--bg);color:var(--muted);border:1px solid var(--border)}
+  .tab-sync{background:var(--bg);border:1px dashed var(--border);border-radius:8px;padding:12px 14px;margin-top:12px}
+  .tab-sync .field-label{margin-top:8px}
+  .tab-sync .field-label:first-child{margin-top:0}
 </style>
 <script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"></script>
 </head>
@@ -326,6 +361,22 @@
     </div>
 
     <button class="modal-btn" onclick="saveKeys()">保存设置</button>
+
+    <!-- 团队共享花费同步 -->
+    <div class="params-section">
+      <div class="params-title">👥 团队花费同步（可选）</div>
+      <p style="font-size:12px;color:var(--muted);margin-bottom:10px;line-height:1.6">基于 JSONBin.io 免费存储，团队所有人花费实时可见。<br>① 在 <a href="https://jsonbin.io" target="_blank" style="color:var(--accent)">jsonbin.io</a> 注册并创建一个 Bin → ② 把 Bin ID 和 Master Key 发给团队成员</p>
+      <div class="tab-sync">
+        <div class="field-label">你的昵称</div>
+        <input class="modal-input" id="sync-username" placeholder="例：小明" maxlength="12">
+        <div class="field-label">Bin ID</div>
+        <input class="modal-input" id="sync-binid" placeholder="68xxxxxxxxxxxxxxxxxxxxxxxx">
+        <div class="field-label">Master Key（用于写入，不会上传服务器）</div>
+        <input class="modal-input" id="sync-masterkey" type="password" placeholder="$2a$10$...">
+        <div id="sync-test-status" style="margin-top:6px;font-size:12px;color:var(--muted)"></div>
+        <button onclick="testAndSaveSync()" style="margin-top:8px;padding:7px 14px;background:var(--bg);border:1px solid var(--border);border-radius:8px;font-size:12px;cursor:pointer;font-family:inherit">🔗 测试连接并保存</button>
+      </div>
+    </div>
   </div>
 </div>
 
@@ -341,7 +392,8 @@
   <div class="chat-list" id="chatList"></div>
   <div class="sidebar-footer">
     <div class="footer-btns">
-      <button class="footer-btn" onclick="openKeys()">⚙ 设置 Key 与参数</button>
+      <button class="footer-btn" onclick="openKeys()">⚙ 设置</button>
+      <button class="footer-btn" onclick="openCostModal()">💰 花费分析</button>
     </div>
   </div>
 </div>
@@ -349,6 +401,7 @@
 <div class="main">
   <div class="topbar">
     <div class="topbar-title" id="topbarTitle">新对话</div>
+    <div id="balanceBadge" class="balance-badge" title="当前所选 API 账户余额"></div>
     <div class="model-select-wrap">
       <div class="provider-dot" id="providerDot" style="background:#c96a3b"></div>
       <select class="model-select" id="modelSelect" onchange="onModelChange()">
@@ -409,6 +462,54 @@
   </div>
 </div>
 
+<!-- Cost Analysis Modal -->
+<div class="modal-bg" id="costModal" style="display:none" onclick="if(event.target===this)closeCostModal()">
+  <div class="modal-box" style="width:580px;max-width:96vw">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px">
+      <h2 style="margin:0">💰 花费分析</h2>
+      <div style="display:flex;align-items:center;gap:8px">
+        <span id="syncStatusBadge" class="sync-status ing" style="display:none"></span>
+        <button onclick="closeCostModal()" style="background:none;border:none;font-size:18px;cursor:pointer;color:var(--muted)">✕</button>
+      </div>
+    </div>
+    <p style="margin-bottom:14px;font-size:13px;color:var(--muted)">重建每次 API 调用的真实上下文大小并按官方定价估算。<span id="teamModeLabel"></span></p>
+
+    <!-- 视图切换 -->
+    <div id="viewToggleWrap" style="display:none;margin-bottom:14px">
+      <div style="display:flex;gap:6px;background:var(--bg);padding:4px;border-radius:10px;width:fit-content">
+        <button id="btnViewTeam" class="ptab active" onclick="setView('team')">👥 全员视图</button>
+        <button id="btnViewMe"   class="ptab"        onclick="setView('me')">🙋 我的明细</button>
+      </div>
+    </div>
+
+    <!-- 预算 -->
+    <div style="display:flex;align-items:center;gap:10px;background:var(--bg);border-radius:10px;padding:10px 14px;margin-bottom:16px">
+      <span style="font-size:13px;color:var(--muted)">团队预算</span>
+      <span style="font-size:13px">$</span>
+      <input id="budgetInput" type="number" min="0" step="1" value="20" style="width:70px;padding:4px 8px;border:1px solid var(--border);border-radius:7px;font-size:13px;font-family:inherit;outline:none" oninput="renderCostDetails()">
+      <span style="font-size:13px;color:var(--muted)">美元</span>
+      <button onclick="refreshCostModal()" style="margin-left:auto;padding:5px 12px;background:var(--user-bubble);color:var(--user-text);border:none;border-radius:7px;font-size:12px;cursor:pointer;font-family:inherit">⟳ 刷新</button>
+    </div>
+
+    <!-- 总览卡片 -->
+    <div id="costSummary" style="margin-bottom:16px"></div>
+
+    <!-- 进度条 -->
+    <div id="costProgressWrap" style="margin-bottom:16px;display:none">
+      <div style="display:flex;justify-content:space-between;font-size:12px;color:var(--muted);margin-bottom:5px">
+        <span id="costProgressLabel">已用 $0.00</span>
+        <span id="costProgressRight">剩余 $20.00</span>
+      </div>
+      <div style="background:var(--border);border-radius:99px;height:8px;overflow:hidden">
+        <div id="costProgressBar" style="height:100%;border-radius:99px;background:var(--accent);width:0%;transition:width 0.4s"></div>
+      </div>
+    </div>
+
+    <!-- 内容区 -->
+    <div id="costMainContent"></div>
+  </div>
+</div>
+
 <input type="file" id="imgInput" accept="image/*" multiple onchange="handleFiles(this.files,'image')">
 <input type="file" id="pdfInput" accept=".pdf" multiple onchange="handleFiles(this.files,'pdf')">
 <input type="file" id="wordInput" accept=".docx,.doc" multiple onchange="handleFiles(this.files,'word')">
@@ -444,13 +545,16 @@ function saveCurrentSession(){
   if(!currentSession)return;
   const sessions=loadSessions();
   const idx=sessions.findIndex(s=>s.id===currentSession.id);
+  const{provider,model}=getProviderModel();
   const data={
     id:currentSession.id,
     title:currentSession.title,
+    provider:provider,
+    model:model,
     messages:history.map(m=>({
       role:m.role,
       content:typeof m.content==='string'?m.content:'[含文件内容]',
-      reasoning:m.reasoning||'' // 保存思考过程
+      reasoning:m.reasoning||''
     })),
     updated:Date.now()
   };
@@ -517,7 +621,7 @@ function onModelChange(){
     sep.style.display='none';btn.style.display='none';searchEnabled=false;
   } else if(provider==='deepseek'){
     sep.style.display='';btn.style.display='';
-    searchEnabled=false; // DeepSeek 不支持真实联网，默认关闭
+    searchEnabled=false;
     btn.className='tool-btn disabled';
     btn.title='DeepSeek API 暂不支持真实联网搜索';
     btn.textContent='🔍 联网（不支持）';
@@ -528,6 +632,58 @@ function onModelChange(){
     btn.textContent=searchEnabled?'🔍 联网中':'🔍 联网';
     btn.onclick=toggleSearch;
     btn.title='';
+  }
+  fetchBalance(provider);
+}
+
+// ── 余额查询 ──
+const CONSOLE_URLS={
+  claude:'https://console.anthropic.com/settings/billing',
+  openai:'https://platform.openai.com/account/billing/overview',
+  gemini:'https://aistudio.google.com/',
+  deepseek:'https://platform.deepseek.com/usage'
+};
+
+async function fetchBalance(provider){
+  const badge=document.getElementById('balanceBadge');
+  const key=keys[provider];
+
+  // 没有 Key 就隐藏
+  if(!key||provider==='local'){badge.className='balance-badge';badge.textContent='';return;}
+
+  badge.className='balance-badge show err';
+  badge.innerHTML='💰 查询中…';
+
+  try{
+    if(provider==='deepseek'){
+      // DeepSeek 有公开余额接口
+      const res=await fetch('https://api.deepseek.com/user/balance',{
+        headers:{'Authorization':'Bearer '+key,'Accept':'application/json'}
+      });
+      const data=await res.json();
+      if(!res.ok) throw new Error(data.message||'请求失败');
+      const infos=data.balance_infos||[];
+      if(!infos.length) throw new Error('无余额信息');
+      // 展示所有币种
+      const parts=infos.map(b=>{
+        const total=parseFloat(b.total_balance||0);
+        const currency=b.currency||'';
+        return `${currency} ${total.toFixed(2)}`;
+      });
+      const firstTotal=parseFloat(infos[0].total_balance||0);
+      badge.className='balance-badge show '+(firstTotal>1?'ok':'warn');
+      badge.innerHTML='💰 '+parts.join(' · ')+` <a href="${CONSOLE_URLS.deepseek}" target="_blank">↗</a>`;
+
+    } else {
+      // 其他平台不提供 CORS 可用的余额接口，直接给跳转链接
+      const names={claude:'Anthropic 控制台',openai:'OpenAI 控制台',gemini:'Google AI Studio'};
+      badge.className='balance-badge show err';
+      badge.innerHTML=`💰 <a href="${CONSOLE_URLS[provider]}" target="_blank">在 ${names[provider]||'官网'} 查看余额 ↗</a>`;
+    }
+  } catch(e){
+    badge.className='balance-badge show err';
+    const names={claude:'Anthropic',openai:'OpenAI',gemini:'Gemini',deepseek:'DeepSeek'};
+    badge.innerHTML=`💰 查询失败 · <a href="${CONSOLE_URLS[provider]}" target="_blank">${names[provider]||''}官网 ↗</a>`;
   }
 }
 
@@ -563,6 +719,9 @@ function saveKeys(){
   localStorage.setItem('p_temp',params.temperature);
   localStorage.setItem('p_maxtokens',params.maxTokens);
   document.getElementById('keyModal').style.display='none';
+  // 保存后立即刷新余额显示
+  const{provider}=getProviderModel();
+  fetchBalance(provider);
 }
 
 function checkKey(){const{provider}=getProviderModel();if(provider==="local")return true;if(!keys[provider]){openKeys();switchTab(provider);return false;}return true;}
@@ -999,6 +1158,7 @@ async function fetchReply() {
     history.push({role:'assistant', content:res.content, reasoning:res.reasoning}); 
     saveCurrentSession();
     renderChatList();
+    syncToTeam(); // 静默推送本次花费到团队
   } catch(e) {
     removeTyping();
     // 调用我们刚写的翻译函数
@@ -1090,6 +1250,286 @@ function translateError(errMsg) {
   
   // 如果没有匹配到常见错误，就原样返回英文
   return '未知错误，建议翻译一下下面的原始信息。';
+}
+
+// ══════════════════════════════════════════
+// 💰 花费分析 + 👥 团队同步模块
+// ══════════════════════════════════════════
+
+const CLAUDE_PRICES = {
+  'claude-sonnet-4-20250514': { in: 3.00,  out: 15.00, name: 'Sonnet 4.6' },
+  'claude-opus-4-20250514':   { in: 15.00, out: 75.00, name: 'Opus 4.6'   },
+  'claude-haiku-4-5-20251001':{ in: 0.80,  out: 4.00,  name: 'Haiku 4.5'  },
+};
+const DEFAULT_PRICE = { in: 3.00, out: 15.00, name: 'Sonnet 4.6' };
+const SYSTEM_CHARS  = 80;
+
+// ── 用户身份 ──
+function getMyUserId(){
+  let id = localStorage.getItem('team_uid');
+  if(!id){ id = 'u_' + Math.random().toString(36).slice(2,10); localStorage.setItem('team_uid', id); }
+  return id;
+}
+function getMyUserName(){ return localStorage.getItem('team_username') || '匿名用户'; }
+
+// ── JSONBin 配置 ──
+function getSyncCfg(){
+  return {
+    binId:     localStorage.getItem('sync_binid')     || '',
+    masterKey: localStorage.getItem('sync_masterkey') || '',
+  };
+}
+function hasSyncCfg(){ const c=getSyncCfg(); return !!(c.binId && c.masterKey); }
+
+// ── Token 估算 ──
+function charsToTokens(n){ return Math.ceil(n / 3); }
+
+// ── 计算本地单个 session 花费 ──
+function calcSessionCost(session){
+  const price = CLAUDE_PRICES[session.model] || DEFAULT_PRICE;
+  const msgs  = (session.messages||[]).filter(m=>m.role==='user'||m.role==='assistant');
+  if(!msgs.length) return { cost:0, inputTok:0, outputTok:0, turns:0, price };
+  let totalIn=0, totalOut=0, turns=0;
+  for(let i=0;i<msgs.length;i++){
+    if(msgs[i].role!=='user') continue;
+    turns++;
+    let inputChars = SYSTEM_CHARS;
+    for(let j=0;j<=i;j++) inputChars += (msgs[j].content||'').length;
+    totalIn += charsToTokens(inputChars);
+    if(i+1<msgs.length && msgs[i+1].role==='assistant'){
+      const out = (msgs[i+1].content||'').length + (msgs[i+1].reasoning||'').length;
+      totalOut += charsToTokens(out);
+    }
+  }
+  const cost = (totalIn/1e6)*price.in + (totalOut/1e6)*price.out;
+  return { cost, inputTok:totalIn, outputTok:totalOut, turns, price };
+}
+
+// ── 汇总本地所有 Claude sessions ──
+function calcMyLocalStats(){
+  const sessions = loadSessions().filter(s => s.provider==='claude' || CLAUDE_PRICES[s.model]);
+  let totalCost=0, totalIn=0, totalOut=0, totalTurns=0;
+  const detail = sessions.map(s=>{
+    const r = calcSessionCost(s);
+    totalCost  += r.cost;
+    totalIn    += r.inputTok;
+    totalOut   += r.outputTok;
+    totalTurns += r.turns;
+    return { ...s, ...r };
+  }).sort((a,b)=>b.cost-a.cost);
+  return { totalCost, totalIn, totalOut, totalTurns, sessions:detail };
+}
+
+// ── JSONBin API ──
+async function binRead(){
+  const { binId } = getSyncCfg();
+  const res = await fetch(`https://api.jsonbin.io/v3/b/${binId}/latest`, {
+    headers: { 'X-Master-Key': getSyncCfg().masterKey }
+  });
+  if(!res.ok) throw new Error('读取失败 HTTP '+res.status);
+  const data = await res.json();
+  return data.record || {};
+}
+
+async function binWrite(record){
+  const { binId, masterKey } = getSyncCfg();
+  const res = await fetch(`https://api.jsonbin.io/v3/b/${binId}`, {
+    method: 'PUT',
+    headers: { 'Content-Type':'application/json', 'X-Master-Key': masterKey },
+    body: JSON.stringify(record)
+  });
+  if(!res.ok) throw new Error('写入失败 HTTP '+res.status);
+  return res.json();
+}
+
+// ── 推送当前用户数据到 JSONBin ──
+async function syncToTeam(silent=true){
+  if(!hasSyncCfg()) return;
+  const badge = document.getElementById('syncStatusBadge');
+  if(badge){ badge.style.display='inline-flex'; badge.className='sync-status ing'; badge.textContent='⟳ 同步中…'; }
+  try {
+    const stats = calcMyLocalStats();
+    const uid   = getMyUserId();
+    const record = await binRead();
+    if(!record.users) record.users = {};
+    record.users[uid] = {
+      name:       getMyUserName(),
+      totalCost:  stats.totalCost,
+      inputTok:   stats.totalIn,
+      outputTok:  stats.totalOut,
+      sessions:   stats.sessions.length,
+      turns:      stats.totalTurns,
+      updatedAt:  Date.now()
+    };
+    await binWrite(record);
+    if(badge){ badge.className='sync-status ok'; badge.textContent='✓ 已同步'; setTimeout(()=>{ badge.style.display='none'; }, 3000); }
+  } catch(e) {
+    if(badge){ badge.className='sync-status err'; badge.textContent='✗ 同步失败'; }
+    if(!silent) throw e;
+  }
+}
+
+// ── 设置页读取 JSONBin 配置填入表单 ──
+const _origOpenKeys = openKeys;
+openKeys = function(){
+  _origOpenKeys();
+  document.getElementById('sync-username').value = getMyUserName();
+  document.getElementById('sync-binid').value    = getSyncCfg().binId;
+  document.getElementById('sync-masterkey').value= getSyncCfg().masterKey;
+};
+
+async function testAndSaveSync(){
+  const name  = document.getElementById('sync-username').value.trim();
+  const binId = document.getElementById('sync-binid').value.trim();
+  const mk    = document.getElementById('sync-masterkey').value.trim();
+  const st    = document.getElementById('sync-test-status');
+  if(!name){ st.textContent='⚠ 请先填写昵称'; return; }
+  if(!binId || !mk){ st.textContent='⚠ 请填写 Bin ID 和 Master Key'; return; }
+  st.textContent = '连接测试中…';
+  try {
+    localStorage.setItem('team_username', name);
+    localStorage.setItem('sync_binid', binId);
+    localStorage.setItem('sync_masterkey', mk);
+    await syncToTeam(false);
+    st.style.color = '#2d7a3a';
+    st.textContent = '✓ 连接成功，已同步你的数据！';
+  } catch(e) {
+    st.style.color = '#c0392b';
+    st.textContent = '✗ 失败：' + e.message;
+  }
+}
+
+// ── 花费分析弹窗 ──
+let costView = 'team'; // 'team' | 'me'
+function setView(v){ costView=v; document.getElementById('btnViewTeam').className='ptab'+(v==='team'?' active':''); document.getElementById('btnViewMe').className='ptab'+(v==='me'?' active':''); renderCostDetails(); }
+
+function fmtTok(n){ if(n>=1e6)return(n/1e6).toFixed(2)+'M'; if(n>=1e3)return(n/1e3).toFixed(1)+'K'; return n+''; }
+function fmtTime(ts){ if(!ts)return''; const d=new Date(ts); return`${d.getMonth()+1}/${d.getDate()} ${d.getHours()}:${String(d.getMinutes()).padStart(2,'0')}`; }
+const AVATAR_COLORS = ['#c96a3b','#4285f4','#19c37d','#9b59b6','#e67e22','#1abc9c','#e74c3c','#3498db'];
+function avatarColor(uid){ let h=0; for(const c of uid) h=(h*31+c.charCodeAt(0))&0xffffffff; return AVATAR_COLORS[Math.abs(h)%AVATAR_COLORS.length]; }
+
+function openCostModal(){
+  document.getElementById('costModal').style.display='flex';
+  refreshCostModal();
+}
+function closeCostModal(){ document.getElementById('costModal').style.display='none'; }
+
+async function refreshCostModal(){
+  const badge = document.getElementById('syncStatusBadge');
+  const syncCfg = hasSyncCfg();
+  document.getElementById('viewToggleWrap').style.display = syncCfg ? '' : 'none';
+  document.getElementById('teamModeLabel').innerHTML = syncCfg
+    ? '<span style="color:var(--accent);font-size:12px">👥 团队同步已开启</span>'
+    : '<span style="color:var(--muted);font-size:12px">⚠ 仅统计本机 Claude 对话。在设置里配置 JSONBin 可查看全员花费。</span>';
+
+  if(syncCfg){
+    badge.style.display='inline-flex'; badge.className='sync-status ing'; badge.textContent='⟳ 同步中…';
+    try {
+      await syncToTeam(false);
+      const record = await binRead();
+      badge.className='sync-status ok'; badge.textContent='✓ 数据已更新';
+      setTimeout(()=>{ badge.style.display='none'; },3000);
+      renderCostDetails(record.users || {});
+    } catch(e){
+      badge.className='sync-status err'; badge.textContent='✗ '+e.message;
+      renderCostDetails();
+    }
+  } else {
+    badge.style.display='none';
+    renderCostDetails();
+  }
+}
+
+function renderCostDetails(teamUsers){
+  const budget = parseFloat(document.getElementById('budgetInput').value)||20;
+  const myStats = calcMyLocalStats();
+  const showTeam = hasSyncCfg() && teamUsers && costView==='team';
+
+  // ── 计算展示数据 ──
+  let totalCost, totalIn, totalOut;
+  if(showTeam){
+    const users = Object.values(teamUsers);
+    totalCost = users.reduce((s,u)=>s+u.totalCost,0);
+    totalIn   = users.reduce((s,u)=>s+u.inputTok,0);
+    totalOut  = users.reduce((s,u)=>s+u.outputTok,0);
+  } else {
+    totalCost = myStats.totalCost;
+    totalIn   = myStats.totalIn;
+    totalOut  = myStats.totalOut;
+  }
+  const remaining = Math.max(0, budget - totalCost);
+  const pct = Math.min(100, (totalCost/budget)*100);
+
+  // ── 总览卡片 ──
+  document.getElementById('costSummary').innerHTML = `
+    <div class="cost-summary-grid">
+      <div class="cost-card accent">
+        <div class="cv">$${totalCost.toFixed(4)}</div>
+        <div class="cl">${showTeam?'全员总花费':'我的总花费'}</div>
+      </div>
+      <div class="cost-card">
+        <div class="cv">${fmtTok(totalIn)}</div>
+        <div class="cl">输入 Tokens</div>
+      </div>
+      <div class="cost-card">
+        <div class="cv">${fmtTok(totalOut)}</div>
+        <div class="cl">输出 Tokens</div>
+      </div>
+    </div>`;
+
+  // ── 进度条 ──
+  document.getElementById('costProgressWrap').style.display='';
+  document.getElementById('costProgressLabel').textContent=`已消耗 $${totalCost.toFixed(4)}`;
+  document.getElementById('costProgressRight').textContent=`剩余约 $${remaining.toFixed(2)}`;
+  const bar = document.getElementById('costProgressBar');
+  bar.style.width=pct+'%';
+  bar.style.background = pct>80?'#c0392b':pct>50?'#e67e22':'var(--accent)';
+
+  // ── 内容区 ──
+  const main = document.getElementById('costMainContent');
+  if(showTeam){
+    // 全员视图
+    const myUid = getMyUserId();
+    const users = Object.entries(teamUsers).sort((a,b)=>b[1].totalCost-a[1].totalCost);
+    if(!users.length){ main.innerHTML='<div style="text-align:center;padding:24px;color:var(--muted);font-size:13px">暂无团队数据</div>'; return; }
+    const maxCost = users[0][1].totalCost || 0.0001;
+    main.innerHTML = `
+      <div style="font-size:12px;color:var(--muted);margin-bottom:8px;font-weight:500;letter-spacing:0.4px;text-transform:uppercase">成员花费排行</div>
+      <div style="display:flex;flex-direction:column;gap:8px;max-height:340px;overflow-y:auto">
+        ${users.map(([uid,u])=>{
+          const pct2 = (u.totalCost/maxCost*100).toFixed(1);
+          const isMe = uid===myUid;
+          const col  = avatarColor(uid);
+          return `<div class="team-row" style="${isMe?'border-color:var(--accent);background:var(--accent-light)':''}">
+            <div class="team-avatar" style="background:${col}20;color:${col}">${(u.name||'?')[0].toUpperCase()}</div>
+            <div style="flex:1;min-width:0">
+              <div style="display:flex;align-items:center;gap:6px">
+                <span class="team-name">${u.name||'未知'}${isMe?' <span style="font-size:10px;color:var(--accent)">(我)</span>':''}</span>
+                <span style="font-size:10px;color:var(--muted)">${u.sessions||0}个对话 · ${u.turns||0}轮</span>
+              </div>
+              <div class="team-bar-wrap"><div class="team-bar" style="width:${pct2}%;background:${col}"></div></div>
+              <div class="team-meta">输入 ${fmtTok(u.inputTok||0)} · 输出 ${fmtTok(u.outputTok||0)} · 最后更新 ${fmtTime(u.updatedAt)}</div>
+            </div>
+            <div class="team-cost" style="color:${col}">$${(u.totalCost||0).toFixed(4)}</div>
+          </div>`;
+        }).join('')}
+      </div>`;
+  } else {
+    // 我的明细视图
+    const rows = myStats.sessions;
+    if(!rows.length){ main.innerHTML='<div style="text-align:center;padding:24px;color:var(--muted);font-size:13px">暂无 Claude 对话记录</div>'; return; }
+    main.innerHTML = `
+      <div style="font-size:12px;color:var(--muted);margin-bottom:8px;font-weight:500;letter-spacing:0.4px;text-transform:uppercase">我的对话明细（按花费排序）</div>
+      <div style="max-height:320px;overflow-y:auto;display:flex;flex-direction:column;gap:6px">
+        ${rows.map(r=>`
+          <div class="cost-row">
+            <div class="cost-row-title" title="${r.title}">${r.title||'无标题'}</div>
+            <span class="cost-row-model">${r.price.name}</span>
+            <div class="cost-row-meta">${r.turns}轮 · ${fmtTok(r.inputTok+r.outputTok)} tok</div>
+            <div class="cost-row-price">$${r.cost.toFixed(5)}</div>
+          </div>`).join('')}
+      </div>`;
+  }
 }
 
 mermaid.initialize({startOnLoad:false,theme:'neutral'});
