@@ -1084,7 +1084,7 @@ function toDeepSeekMessages(messages){
 async function callClaude(model,messages){
   const msgs=toClaudeMessages(messages);
   // Claude 强制要求该参数，8192 是目前的极限安全值
-  const res=await fetch('https://api.anthropic.com/v1/messages',{method:'POST',headers:{'Content-Type':'application/json','x-api-key':keys.claude,'anthropic-version':'2023-06-01','anthropic-dangerous-direct-browser-access':'true'},body:JSON.stringify({model, max_tokens: 8192, temperature:params.temperature,system:'你是一个专业、友善的AI助手，用简洁清晰的中文回答问题。',messages:msgs})});
+  const res=await fetch('https://api.anthropic.com/v1/messages',{method:'POST',headers:{'Content-Type':'application/json','x-api-key':keys.claude,'anthropic-version':'2023-06-01','anthropic-dangerous-direct-browser-access':'true'},body:JSON.stringify({model, max_tokens: 8192, temperature:params.temperature,system:'你是一个专业、友善的AI助手，用简洁清晰的中文回答问题。你当前使用的模型是：${model}。',messages:msgs})});
   const data=await res.json();
   if(data.error)throw new Error(data.error.message);
   return { content: data.content?.[0]?.text||'', reasoning: '' };
@@ -1092,7 +1092,7 @@ async function callClaude(model,messages){
 
 async function callOpenAI(model,messages){
   // OpenAI 不传 max_tokens，默认允许输出到模型极限
-  const body={model, temperature:params.temperature, messages:[{role:'system',content:'你是一个专业、友善的AI助手，用简洁清晰的中文回答问题。'},...toOpenAIMessages(messages)]};
+  const body={model, temperature:params.temperature, messages:[{role:'system',content:'你是一个专业、友善的AI助手，用简洁清晰的中文回答问题。你当前使用的模型是：${model}。'},...toOpenAIMessages(messages)]};
   if(searchEnabled) body.tools=[{type:'web_search_preview'}];
   const res=await fetch('https://api.openai.com/v1/chat/completions',{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+keys.openai},body:JSON.stringify(body)});
   const data=await res.json();
@@ -1112,7 +1112,7 @@ async function callGemini(model,messages){
 
 async function callDeepSeek(model,messages){
   // DeepSeek 最大支持 8192，强制指定最高值防止其默认截断
-  const body={model, max_tokens: 8192, temperature:params.temperature,messages:[{role:'system',content:'你是一个专业、友善的AI助手，用简洁清晰的中文回答问题。'},...toDeepSeekMessages(messages)]};
+  const body={model, max_tokens: 8192, temperature:params.temperature,messages:[{role:'system',content:'你是一个专业、友善的AI助手，用简洁清晰的中文回答问题。你当前使用的模型是：${model}。'},...toDeepSeekMessages(messages)]};
   const res=await fetch('https://api.deepseek.com/v1/chat/completions',{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+keys.deepseek},body:JSON.stringify(body)});
   const data=await res.json();
   if(data.error)throw new Error(data.error.message);
