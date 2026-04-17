@@ -313,7 +313,7 @@
       <div class="field-label">Anthropic API Key</div>
       <input class="modal-input" id="key-claude" type="password" placeholder="sk-ant-...">
       <div class="key-status" id="st-claude"></div>
-      <div class="model-note">申请地址：console.anthropic.com<br>最新模型：Sonnet 4.6（推荐）· Opus 4.6（最强）· Haiku 4.5（最快最便宜）</div>
+      <div class="model-note">申请地址：console.anthropic.com<br>最新模型：Sonnet 4.6（推荐）· Opus 4.7（最强）· Haiku 4.5（最快最便宜）</div>
     </div>
 
     <div class="key-section" id="tab-openai">
@@ -400,7 +400,7 @@
       <select class="model-select" id="modelSelect" onchange="onModelChange()">
         <optgroup label="── Claude (Anthropic) ──">
           <option value="claude|claude-sonnet-4-20250514">Claude Sonnet 4.6</option>
-          <option value="claude|claude-opus-4-20250514">Claude Opus 4.6</option>
+          <option value="claude|claude-opus-4-20250514">Claude Opus 4.7</option>
           <option value="claude|claude-haiku-4-5-20251001">Claude Haiku 4.5</option>
         </optgroup>
         <optgroup label="── OpenAI (ChatGPT) ──">
@@ -416,7 +416,7 @@
           <option value="gemini|gemini-2.5-flash-lite">Gemini 2.5 Flash Lite</option>
         </optgroup>
         <optgroup label="── 本地 ──">
-        <option value="local|claude-pro">本地 Claude Pro（自己的账号）</option>
+        <option value="local|claude-pro"> Claude Pro（自己的账号，默认Sonnet 4.6）</option>
         </optgroup>
         <optgroup label="── DeepSeek ──">
           <option value="deepseek|deepseek-chat">DeepSeek V3（快速）</option>
@@ -1292,7 +1292,7 @@ function translateError(errMsg) {
 
 const CLAUDE_PRICES = {
   'claude-sonnet-4-20250514': { in: 3.00,  out: 15.00, name: 'Sonnet 4.6' },
-  'claude-opus-4-20250514':   { in: 15.00, out: 75.00, name: 'Opus 4.6'   },
+  'claude-opus-4-20250514':   { in: 15.00, out: 75.00, name: 'Opus 4.7'   },
   'claude-haiku-4-5-20251001':{ in: 0.80,  out: 4.00,  name: 'Haiku 4.5'  },
 };
 const DEFAULT_PRICE = { in: 3.00, out: 15.00, name: 'Sonnet 4.6' };
