@@ -881,7 +881,7 @@ function renderMarkdown(text){
   });
   html=html.replace(/%%SVG_(\d+)%%/g,(_,i)=>'<div class="mermaid-wrap">'+svgBlocks[i]+'</div>');
   html=html.replace(/<pre><code class="language-(\w+)">(([\s\S]*?))<\/code><\/pre>/g,(_,lang,code)=>{
-    const raw=code.replace(/&amp;/g,'&').replace(/&lt;/g,'<').replace(/&gt;/g,'>').replace(/&quot;/g,'"');
+    const raw=code.replace(/&amp;/g,'&').replace(/&lt;/g,'<').replace(/&gt;/g,'>').replace(/&quot;/g,'"').replace(/&#39;/g,"'");
     const extMap={python:'py',javascript:'js',js:'js',html:'html',css:'css',java:'java',cpp:'cpp',c:'c',typescript:'ts',bash:'sh',shell:'sh',sql:'sql',json:'json'};
     const ext=extMap[lang]||lang||'txt';
     const enc=encodeURIComponent(raw);
