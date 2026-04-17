@@ -1121,6 +1121,7 @@ async function callDeepSeek(model,messages){
     reasoning: data.choices?.[0]?.message?.reasoning_content||'' 
   };
 }
+
   async function callLocal(messages){
   // 确保传递完整的消息历史，并正确映射角色名
   const formattedMessages = messages.map(m => ({
@@ -1146,6 +1147,7 @@ async function callDeepSeek(model,messages){
     reasoning: &#39;&#39; 
   };
 }
+
 
 // ── 修改 4：更新 send 函数，接收双参数 ──
 
