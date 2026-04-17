@@ -1,3 +1,6 @@
+没问题，这是修复了所有语法错误和逻辑问题后的完整 HTML 代码。你可以直接复制并覆盖你原来的文件直接运行：
+
+```html
 <!DOCTYPE html>
 <html lang="zh">
 <head>
@@ -298,7 +301,6 @@
 </head>
 <body>
 
-<!-- Keys & Settings Modal -->
 <div class="modal-bg" id="keyModal" style="display:none">
   <div class="modal-box">
     <h2>API Key 与模型设置</h2>
@@ -310,7 +312,6 @@
       <button class="ptab" onclick="switchTab('deepseek')">DeepSeek</button>
     </div>
 
-    <!-- Claude -->
     <div class="key-section show" id="tab-claude">
       <div class="field-label">Anthropic API Key</div>
       <input class="modal-input" id="key-claude" type="password" placeholder="sk-ant-...">
@@ -318,7 +319,6 @@
       <div class="model-note">申请地址：console.anthropic.com<br>最新模型：Sonnet 4.6（推荐）· Opus 4.6（最强）· Haiku 4.5（最快最便宜）</div>
     </div>
 
-    <!-- OpenAI -->
     <div class="key-section" id="tab-openai">
       <div class="field-label">OpenAI API Key</div>
       <input class="modal-input" id="key-openai" type="password" placeholder="sk-...">
@@ -326,7 +326,6 @@
       <div class="model-note">申请地址：platform.openai.com<br>最新模型：GPT-5.4（旗舰）· GPT-5.4 Pro（最强推理）· GPT-5.4 mini（性价比）· GPT-5.3（快速）</div>
     </div>
 
-    <!-- Gemini -->
     <div class="key-section" id="tab-gemini">
       <div class="field-label">Google Gemini API Key</div>
       <input class="modal-input" id="key-gemini" type="password" placeholder="AIza...">
@@ -334,7 +333,6 @@
       <div class="model-note">申请地址：aistudio.google.com（免费额度较多）<br>最新模型：Gemini 3.1 Pro（最强推理）· Gemini 3 Flash（速度/能力平衡）· Gemini 2.5 Flash（稳定快速）</div>
     </div>
 
-    <!-- DeepSeek -->
     <div class="key-section" id="tab-deepseek">
       <div class="field-label">DeepSeek API Key</div>
       <input class="modal-input" id="key-deepseek" type="password" placeholder="sk-...">
@@ -342,7 +340,6 @@
       <div class="model-note">申请地址：platform.deepseek.com（国内直连，无需梯子，价格最低）<br>V3 = 快速模式 · R1 = 深度思考模式</div>
     </div>
 
-    <!-- 通用参数 -->
     <div class="params-section">
       <div class="params-title">模型参数</div>
 
@@ -362,7 +359,6 @@
 
     <button class="modal-btn" onclick="saveKeys()">保存设置</button>
 
-    <!-- 团队共享花费同步 -->
     <div class="params-section">
       <div class="params-title">👥 团队花费同步（可选）</div>
       <p style="font-size:12px;color:var(--muted);margin-bottom:10px;line-height:1.6">基于 JSONBin.io 免费存储，团队所有人花费实时可见。<br>① 在 <a href="https://jsonbin.io" target="_blank" style="color:var(--accent)">jsonbin.io</a> 注册并创建一个 Bin → ② 把 Bin ID 和 Master Key 发给团队成员</p>
@@ -462,7 +458,6 @@
   </div>
 </div>
 
-<!-- Cost Analysis Modal -->
 <div class="modal-bg" id="costModal" style="display:none" onclick="if(event.target===this)closeCostModal()">
   <div class="modal-box" style="width:580px;max-width:96vw">
     <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px">
@@ -474,7 +469,6 @@
     </div>
     <p style="margin-bottom:14px;font-size:13px;color:var(--muted)">重建每次 API 调用的真实上下文大小并按官方定价估算。<span id="teamModeLabel"></span></p>
 
-    <!-- 视图切换 -->
     <div id="viewToggleWrap" style="display:none;margin-bottom:14px">
       <div style="display:flex;gap:6px;background:var(--bg);padding:4px;border-radius:10px;width:fit-content">
         <button id="btnViewTeam" class="ptab active" onclick="setView('team')">👥 全员视图</button>
@@ -482,7 +476,6 @@
       </div>
     </div>
 
-    <!-- 预算 -->
     <div style="display:flex;align-items:center;gap:10px;background:var(--bg);border-radius:10px;padding:10px 14px;margin-bottom:16px">
       <span style="font-size:13px;color:var(--muted)">团队预算</span>
       <span style="font-size:13px">$</span>
@@ -491,10 +484,8 @@
       <button onclick="refreshCostModal()" style="margin-left:auto;padding:5px 12px;background:var(--user-bubble);color:var(--user-text);border:none;border-radius:7px;font-size:12px;cursor:pointer;font-family:inherit">⟳ 刷新</button>
     </div>
 
-    <!-- 总览卡片 -->
     <div id="costSummary" style="margin-bottom:16px"></div>
 
-    <!-- 进度条 -->
     <div id="costProgressWrap" style="margin-bottom:16px;display:none">
       <div style="display:flex;justify-content:space-between;font-size:12px;color:var(--muted);margin-bottom:5px">
         <span id="costProgressLabel">已用 $0.00</span>
@@ -505,7 +496,6 @@
       </div>
     </div>
 
-    <!-- 内容区 -->
     <div id="costMainContent"></div>
   </div>
 </div>
@@ -1084,7 +1074,7 @@ function toDeepSeekMessages(messages){
 async function callClaude(model,messages){
   const msgs=toClaudeMessages(messages);
   // Claude 强制要求该参数，8192 是目前的极限安全值
-  const res=await fetch('https://api.anthropic.com/v1/messages',{method:'POST',headers:{'Content-Type':'application/json','x-api-key':keys.claude,'anthropic-version':'2023-06-01','anthropic-dangerous-direct-browser-access':'true'},body:JSON.stringify({model, max_tokens: 8192, temperature:params.temperature,system:'你是一个专业、友善的AI助手，用简洁清晰的中文回答问题。你当前使用的模型是：${model}。',messages:msgs})});
+  const res=await fetch('https://api.anthropic.com/v1/messages',{method:'POST',headers:{'Content-Type':'application/json','x-api-key':keys.claude,'anthropic-version':'2023-06-01','anthropic-dangerous-direct-browser-access':'true'},body:JSON.stringify({model, max_tokens: 8192, temperature:params.temperature,system:`你是一个专业、友善的AI助手，用简洁清晰的中文回答问题。你当前使用的模型是：${model}。`,messages:msgs})});
   const data=await res.json();
   if(data.error)throw new Error(data.error.message);
   return { content: data.content?.[0]?.text||'', reasoning: '' };
@@ -1092,7 +1082,7 @@ async function callClaude(model,messages){
 
 async function callOpenAI(model,messages){
   // OpenAI 不传 max_tokens，默认允许输出到模型极限
-  const body={model, temperature:params.temperature, messages:[{role:'system',content:'你是一个专业、友善的AI助手，用简洁清晰的中文回答问题。你当前使用的模型是：${model}。'},...toOpenAIMessages(messages)]};
+  const body={model, temperature:params.temperature, messages:[{role:'system',content:`你是一个专业、友善的AI助手，用简洁清晰的中文回答问题。你当前使用的模型是：${model}。`},...toOpenAIMessages(messages)]};
   if(searchEnabled) body.tools=[{type:'web_search_preview'}];
   const res=await fetch('https://api.openai.com/v1/chat/completions',{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+keys.openai},body:JSON.stringify(body)});
   const data=await res.json();
@@ -1112,7 +1102,7 @@ async function callGemini(model,messages){
 
 async function callDeepSeek(model,messages){
   // DeepSeek 最大支持 8192，强制指定最高值防止其默认截断
-  const body={model, max_tokens: 8192, temperature:params.temperature,messages:[{role:'system',content:'你是一个专业、友善的AI助手，用简洁清晰的中文回答问题。你当前使用的模型是：${model}。'},...toDeepSeekMessages(messages)]};
+  const body={model, max_tokens: 8192, temperature:params.temperature,messages:[{role:'system',content:`你是一个专业、友善的AI助手，用简洁清晰的中文回答问题。你当前使用的模型是：${model}。`},...toDeepSeekMessages(messages)]};
   const res=await fetch('https://api.deepseek.com/v1/chat/completions',{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+keys.deepseek},body:JSON.stringify(body)});
   const data=await res.json();
   if(data.error)throw new Error(data.error.message);
@@ -1122,16 +1112,16 @@ async function callDeepSeek(model,messages){
   };
 }
 
-  async function callLocal(messages){
+async function callLocal(messages){
   // 确保传递完整的消息历史，并正确映射角色名
   const formattedMessages = messages.map(m => ({
-    role: m.role === ';assistant'; ? ';assistant'; : ';user';, // 确保角色名正确
-    content: typeof m.content === ';string'; ? m.content : ';';
+    role: m.role === 'assistant' ? 'assistant' : 'user', 
+    content: typeof m.content === 'string' ? m.content : ''
   }));
   
-  const res = await fetch(';http://localhost:8765';, {
-    method: ';POST';,
-    headers: {';Content-Type';:';application/json';},
+  const res = await fetch('http://localhost:8765', {
+    method: 'POST',
+    headers: {'Content-Type': 'application/json'},
     body: JSON.stringify({
       messages: formattedMessages // 传递完整的历史对话
     })
@@ -1143,8 +1133,8 @@ async function callDeepSeek(model,messages){
   
   const data = await res.json();
   return { 
-    content: data.answer || ';抱歉，本地服务器没有返回有效回答。';, 
-    reasoning: ';'; 
+    content: data.answer || '抱歉，本地服务器没有返回有效回答。', 
+    reasoning: '' 
   };
 }
 
@@ -1554,3 +1544,4 @@ init();
 </script>
 </body>
 </html>
+```
