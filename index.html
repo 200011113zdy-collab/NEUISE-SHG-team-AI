@@ -605,7 +605,13 @@ function onModelChange(){
   const btn=document.getElementById('searchToggleBtn');
   const sep=document.getElementById('searchSep');
   if(provider==='claude'){
-    sep.style.display='none';btn.style.display='none';searchEnabled=false;
+    // 解除隐藏，允许 Claude 点击联网按钮
+    sep.style.display='';
+    btn.style.display='';
+    btn.className='tool-btn'+(searchEnabled?' on':'');
+    btn.textContent=searchEnabled?'🔍 联网中':'🔍 联网';
+    btn.onclick=toggleSearch;
+    btn.title='';
   } else if(provider==='deepseek'){
     sep.style.display='';btn.style.display='';
     searchEnabled=false;
