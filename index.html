@@ -1074,13 +1074,39 @@ function toDeepSeekMessages(messages){
 // ── API 调用 ──
 // ── 修改 3：统一四个 API 的返回值格式，并抓取 DeepSeek 的 reasoning_content ──
 
-async function callClaude(model,messages){
-  const msgs=toClaudeMessages(messages);
-  // Claude 强制要求该参数，8192 是目前的极限安全值
-  const res=await fetch('https://api.anthropic.com/v1/messages',{method:'POST',headers:{'Content-Type':'application/json','x-api-key':keys.claude,'anthropic-version':'2023-06-01','anthropic-dangerous-direct-browser-access':'true'},body:JSON.stringify({model, max_tokens: 8192, temperature:params.temperature,system:`你是一个专业、友善的AI助手，用简洁清晰的中文回答问题。你当前使用的模型是：${model}。`,messages:msgs})});
-  const data=await res.json();
-  if(data.error)throw new Error(data.error.message);
-  return { content: data.content?.[0]?.text||'', reasoning: '' };
+async function callClaude(model, messages) {
+  const msgs = toClaudeMessages(messages);
+
+  // 构造请求体，联网时加入 web_search 工具
+  const body = {
+    model,
+    max_tokens: 8192,
+    temperature: params.temperature,
+    system: `你是一个专业、友善的AI助手，用简洁清晰的中文回答问题。你当前使用的模型是：${model}。`,
+    messages: msgs
+  };
+  if (searchEnabled) {
+    body.tools = [{ type: "web_search_20250305", name: "web_search" }];
+  }
+
+  const res = await fetch('https://api.anthropic.com/v1/messages', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'x-api-key': keys.claude,
+      'anthropic-version': '2023-06-01',
+      'anthropic-dangerous-direct-browser-access': 'true'
+    },
+    body: JSON.stringify(body)
+  });
+
+  const data = await res.json();
+  if (data.error) throw new Error(data.error.message);
+
+  // 联网模式下 content 数组里会混有 tool_use/tool_result 块，
+  // 用 find 精确取 text 块，而不是直接取 [0]
+  const textBlock = data.content?.find(b => b.type === 'text');
+  return { content: textBlock?.text || '', reasoning: '' };
 }
 
 async function callOpenAI(model,messages){
