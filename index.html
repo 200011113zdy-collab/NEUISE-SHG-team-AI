@@ -1125,13 +1125,13 @@ async function callDeepSeek(model,messages){
   async function callLocal(messages){
   // 确保传递完整的消息历史，并正确映射角色名
   const formattedMessages = messages.map(m => ({
-    role: m.role === &#39;assistant&#39; ? &#39;assistant&#39; : &#39;user&#39;, // 确保角色名正确
-    content: typeof m.content === &#39;string&#39; ? m.content : &#39;&#39;
+    role: m.role === ‘;assistant‘; ? ‘;assistant‘; : ‘;user‘;, // 确保角色名正确
+    content: typeof m.content === ‘;string‘; ? m.content : ‘;‘;
   }));
   
-  const res = await fetch(&#39;http://localhost:8765&#39;, {
-    method: &#39;POST&#39;,
-    headers: {&#39;Content-Type&#39;:&#39;application/json&#39;},
+  const res = await fetch(‘;http://localhost:8765‘;, {
+    method: ‘;POST‘;,
+    headers: {‘;Content-Type‘;:‘;application/json‘;},
     body: JSON.stringify({
       messages: formattedMessages // 传递完整的历史对话
     })
@@ -1143,8 +1143,8 @@ async function callDeepSeek(model,messages){
   
   const data = await res.json();
   return { 
-    content: data.answer || &#39;抱歉，本地服务器没有返回有效回答。&#39;, 
-    reasoning: &#39;&#39; 
+    content: data.answer || ‘;抱歉，本地服务器没有返回有效回答。‘;, 
+    reasoning: ‘;‘; 
   };
 }
 
