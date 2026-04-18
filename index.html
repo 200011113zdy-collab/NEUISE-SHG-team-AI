@@ -1184,41 +1184,39 @@ async function callDeepSeek(model,messages){
 }
 
 async function callLocalClaude(messages){
-  // ⚠️ 记得把这里换成你最新的 Ngrok 地址！
   const NGROK_URL = "https://quickness-earwig-service.ngrok-free.dev/api/claude";
   
-  // 1. 我们来拼凑一段包含“历史记忆”的超级提示词
   let fullPrompt = "以下是我们之前的对话历史记录：\n\n";
+  let localFiles = []; // 📦 改名：用来收集图片、PDF等需要后端亲自读的二进制文件
   
-  // 2. 遍历网页上所有的聊天记录
   messages.forEach(m => {
       let textContent = "";
-      // 兼容文件和普通文本
       if (Array.isArray(m.content)) {
           textContent = m.content.map(c => c.text || '').join('\n');
       } else {
           textContent = m.content || '';
       }
       
-      // 如果上传了文件，带上文件内容
       if (m._files && m._files.length) {
           m._files.forEach(f => {
-              if (f.text) textContent = `【参考文件：${f.name}】\n${f.text}\n\n` + textContent;
+              // 👇 核心改动：如果是图片或 PDF，提取 Base64 数据打包给后端
+              if (f.kind === 'image' || f.kind === 'pdf') {
+                  localFiles.push({ name: f.name, data: f.data });
+                  textContent = `【用户上传了文件：${f.name}】\n` + textContent;
+              } 
+              // 👇 Word/Excel/PPT/TXT 等，前端已经提取出文本了，直接塞进文字历史里
+              else if (f.text) {
+                  textContent = `【参考文件：${f.name}】\n${f.text}\n\n` + textContent;
+              }
           });
       }
       
-      // 区分是谁说的话
       let roleName = m.role === 'user' ? '用户' : 'AI';
       fullPrompt += `[${roleName}]: ${textContent}\n\n`;
   });
-
   
-  // 3. 在最后加上行动指令
-
   fullPrompt += "请仔细阅读上述对话历史，并自然地回答用户最后提出的问题。";
-  
 
-  // 4. 把打包好的长文本发给你的本地 Python 服务器
   const res = await fetch(NGROK_URL, {
     method: 'POST',
     headers: {
@@ -1226,7 +1224,12 @@ async function callLocalClaude(messages){
       'ngrok-skip-browser-warning': 'true',
       'Authorization': 'Bearer ' + (localStorage.getItem('key_local') || '')
     },
-    body: JSON.stringify({ prompt: fullPrompt })
+    // 👇 把 files 数组一起发过去
+    body: JSON.stringify({ 
+        prompt: fullPrompt, 
+        files: localFiles, 
+        search_enabled: typeof searchEnabled !== 'undefined' ? searchEnabled : false
+    })
   });
 
   const data = await res.json();
@@ -1234,6 +1237,7 @@ async function callLocalClaude(messages){
   
   return { content: data.response || '', reasoning: '' };
 }
+
 // ── 修改 4：更新 send 函数，接收双参数 ──
 
 // 新增 1：提取出通用的 API 请求核心逻辑
