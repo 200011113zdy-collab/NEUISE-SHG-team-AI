@@ -307,6 +307,7 @@
       <button class="ptab" onclick="switchTab('openai')">OpenAI</button>
       <button class="ptab" onclick="switchTab('gemini')">Gemini</button>
       <button class="ptab" onclick="switchTab('deepseek')">DeepSeek</button>
+      <button class="ptab" onclick="switchTab('local')">本地服务Claude</button>
     </div>
 
     <div class="key-section show" id="tab-claude">
@@ -335,6 +336,13 @@
       <input class="modal-input" id="key-deepseek" type="password" placeholder="sk-...">
       <div class="key-status" id="st-deepseek"></div>
       <div class="model-note">申请地址：platform.deepseek.com（国内直连，无需梯子，价格最低）<br>V3 = 快速模式 · R1 = 深度思考模式</div>
+    </div>
+
+    <div class="key-section" id="tab-local">
+      <div class="field-label">本地服务访问密码</div>
+      <input class="modal-input" id="key-local" type="password" placeholder="输入专属密码">
+      <div class="key-status" id="st-local"></div>
+      <div class="model-note">请输入专属密码连接本地 Claude 服务。</div>
     </div>
 
     <div class="params-section">
@@ -418,6 +426,9 @@
         <optgroup label="── DeepSeek ──">
           <option value="deepseek|deepseek-chat">DeepSeek V3（快速）</option>
           <option value="deepseek|deepseek-reasoner">DeepSeek R1（深度思考）</option>
+        </optgroup>
+        <optgroup label="── 我的本地服务 ──">
+          <option value="local|claude-code">本地运行的 Claude Code</option>
         </optgroup>
       </select>
     </div>
@@ -515,7 +526,8 @@ let keys={
   claude:localStorage.getItem('key_claude')||'',
   openai:localStorage.getItem('key_openai')||'',
   gemini:localStorage.getItem('key_gemini')||'',
-  deepseek:localStorage.getItem('key_deepseek')||''
+  deepseek:localStorage.getItem('key_deepseek')||'',
+  local: localStorage.getItem('key_local') || '',
 };
 let params={
   temperature:parseFloat(localStorage.getItem('p_temp')||'0.7'),
@@ -635,48 +647,58 @@ const CONSOLE_URLS={
 };
 
 async function fetchBalance(provider){
-  const badge=document.getElementById('balanceBadge');
-  const key=keys[provider];
+  const badge = document.getElementById('balanceBadge');
+  const key = keys[provider];
 
-  // 没有 Key 就隐藏
-  if(!key){badge.className='balance-badge';badge.textContent='';return;}
+  // 1. 如果是本地模式，直接显示跳转官网的链接，不需要 Key 校验
+  if (provider === 'local') {
+    badge.className = 'balance-badge show ok'; // 绿色外观，代表连接正常
+    badge.innerHTML = `💬 <a href="https://claude.ai/chats" target="_blank">前往 Claude 官网 ↗</a>`;
+    return;
+  }
 
-  badge.className='balance-badge show err';
-  badge.innerHTML='💰 查询中…';
+  // 2. 没有 Key 就隐藏 (针对其他 API 模式)
+  if(!key){
+    badge.className = 'balance-badge';
+    badge.textContent = '';
+    return;
+  }
+
+  badge.className = 'balance-badge show err';
+  badge.innerHTML = '💰 查询中…';
 
   try{
-    if(provider==='deepseek'){
+    if(provider === 'deepseek'){
       // DeepSeek 有公开余额接口
-      const res=await fetch('https://api.deepseek.com/user/balance',{
+      const res = await fetch('https://api.deepseek.com/user/balance',{
         headers:{'Authorization':'Bearer '+key,'Accept':'application/json'}
       });
-      const data=await res.json();
-      if(!res.ok) throw new Error(data.message||'请求失败');
-      const infos=data.balance_infos||[];
+      const data = await res.json();
+      if(!res.ok) throw new Error(data.message || '请求失败');
+      const infos = data.balance_infos || [];
       if(!infos.length) throw new Error('无余额信息');
-      // 展示所有币种
-      const parts=infos.map(b=>{
-        const total=parseFloat(b.total_balance||0);
-        const currency=b.currency||'';
+      
+      const parts = infos.map(b => {
+        const total = parseFloat(b.total_balance || 0);
+        const currency = b.currency || '';
         return `${currency} ${total.toFixed(2)}`;
       });
-      const firstTotal=parseFloat(infos[0].total_balance||0);
-      badge.className='balance-badge show '+(firstTotal>1?'ok':'warn');
-      badge.innerHTML='💰 '+parts.join(' · ')+` <a href="${CONSOLE_URLS.deepseek}" target="_blank">↗</a>`;
+      const firstTotal = parseFloat(infos[0].total_balance || 0);
+      badge.className = 'balance-badge show ' + (firstTotal > 1 ? 'ok' : 'warn');
+      badge.innerHTML = '💰 ' + parts.join(' · ') + ` <a href="${CONSOLE_URLS.deepseek}" target="_blank">↗</a>`;
 
     } else {
       // 其他平台不提供 CORS 可用的余额接口，直接给跳转链接
-      const names={claude:'Anthropic 控制台',openai:'OpenAI 控制台',gemini:'Google AI Studio'};
-      badge.className='balance-badge show err';
-      badge.innerHTML=`💰 <a href="${CONSOLE_URLS[provider]}" target="_blank">在 ${names[provider]||'官网'} 查看余额 ↗</a>`;
+      const names = {claude: 'Anthropic 控制台', openai: 'OpenAI 控制台', gemini: 'Google AI Studio'};
+      badge.className = 'balance-badge show err';
+      badge.innerHTML = `💰 <a href="${CONSOLE_URLS[provider]}" target="_blank">在 ${names[provider] || '官网'} 查看余额 ↗</a>`;
     }
   } catch(e){
-    badge.className='balance-badge show err';
-    const names={claude:'Anthropic',openai:'OpenAI',gemini:'Gemini',deepseek:'DeepSeek'};
-    badge.innerHTML=`💰 查询失败 · <a href="${CONSOLE_URLS[provider]}" target="_blank">${names[provider]||''}官网 ↗</a>`;
+    badge.className = 'balance-badge show err';
+    const names = {claude: 'Anthropic', openai: 'OpenAI', gemini: 'Gemini', deepseek: 'DeepSeek'};
+    badge.innerHTML = `💰 查询失败 · <a href="${CONSOLE_URLS[provider]}" target="_blank">${names[provider] || ''}官网 ↗</a>`;
   }
 }
-
 function toggleSearch(){
   searchEnabled=!searchEnabled;
   const btn=document.getElementById('searchToggleBtn');
@@ -685,7 +707,7 @@ function toggleSearch(){
 }
 
 function openKeys(){
-  ['claude','openai','gemini','deepseek'].forEach(p=>{
+  ['claude','openai','gemini','deepseek','local'].forEach(p=>{
     document.getElementById('key-'+p).value=keys[p]||'';
     document.getElementById('st-'+p).textContent=keys[p]?'✓ 已配置':'未配置';
     document.getElementById('st-'+p).className='key-status'+(keys[p]?' ok':'');
@@ -697,25 +719,48 @@ function openKeys(){
 }
 
 function switchTab(p){
-  document.querySelectorAll('.ptab').forEach((t,i)=>t.className='ptab'+(['claude','openai','gemini','deepseek'][i]===p?' active':''));
+  document.querySelectorAll('.ptab').forEach((t,i)=>t.className='ptab'+(['claude','openai','gemini','deepseek','local'][i]===p?' active':''));
   document.querySelectorAll('.key-section').forEach(s=>s.className='key-section');
   document.getElementById('tab-'+p).className='key-section show';
 }
 
-function saveKeys(){
-  ['claude','openai','gemini','deepseek'].forEach(p=>{const v=document.getElementById('key-'+p).value.trim();if(v){keys[p]=v;localStorage.setItem('key_'+p,v);}});
-  params.temperature=parseFloat(document.getElementById('paramTemp').value);
-  params.maxTokens=parseInt(document.getElementById('paramMaxTokens').value)||2000;
-  localStorage.setItem('p_temp',params.temperature);
-  localStorage.setItem('p_maxtokens',params.maxTokens);
-  document.getElementById('keyModal').style.display='none';
-  // 保存后立即刷新余额显示
-  const{provider}=getProviderModel();
+function saveKeys() {
+  // 遍历所有平台，包括新增的 'local'
+  ['claude', 'openai', 'gemini', 'deepseek', 'local'].forEach(p => {
+    const inputEl = document.getElementById('key-' + p);
+    if (inputEl) {
+      const v = inputEl.value.trim();
+      // 直接执行赋值和保存，不再进行 if(v) 判断
+      // 这样即便 v 是空字符串，也会覆盖掉 localStorage 里的旧密码
+      keys[p] = v;
+      localStorage.setItem('key_' + p, v);
+    }
+  });
+
+  // 保存其他模型参数
+  params.temperature = parseFloat(document.getElementById('paramTemp').value);
+  params.maxTokens = parseInt(document.getElementById('paramMaxTokens').value) || 2000;
+  localStorage.setItem('p_temp', params.temperature);
+  localStorage.setItem('p_maxtokens', params.maxTokens);
+
+  // 隐藏设置弹窗
+  document.getElementById('keyModal').style.display = 'none';
+
+  // 刷新当前选定模型的余额显示
+  const { provider } = getProviderModel();
   fetchBalance(provider);
 }
 
-function checkKey(){const{provider}=getProviderModel();if(!keys[provider]){openKeys();switchTab(provider);return false;}return true;}
-
+function checkKey() {
+  const { provider } = getProviderModel();
+  // 不再特指跳过 local，而是统一检查 keys 对象里对应的 provider 是否有值
+  if (!keys[provider]) {
+    openKeys();      // 自动打开设置弹窗
+    switchTab(provider); // 自动切换到当前 provider（如 local）的标签页
+    return false;    // 拦截发送动作
+  }
+  return true;
+}
 // ── 输入 ──
 function handleInput(el){
   el.style.height='auto';
@@ -1138,8 +1183,57 @@ async function callDeepSeek(model,messages){
   };
 }
 
+async function callLocalClaude(messages){
+  // ⚠️ 记得把这里换成你最新的 Ngrok 地址！
+  const NGROK_URL = "https://quickness-earwig-service.ngrok-free.dev/api/claude";
+  
+  // 1. 我们来拼凑一段包含“历史记忆”的超级提示词
+  let fullPrompt = "以下是我们之前的对话历史记录：\n\n";
+  
+  // 2. 遍历网页上所有的聊天记录
+  messages.forEach(m => {
+      let textContent = "";
+      // 兼容文件和普通文本
+      if (Array.isArray(m.content)) {
+          textContent = m.content.map(c => c.text || '').join('\n');
+      } else {
+          textContent = m.content || '';
+      }
+      
+      // 如果上传了文件，带上文件内容
+      if (m._files && m._files.length) {
+          m._files.forEach(f => {
+              if (f.text) textContent = `【参考文件：${f.name}】\n${f.text}\n\n` + textContent;
+          });
+      }
+      
+      // 区分是谁说的话
+      let roleName = m.role === 'user' ? '用户' : 'AI';
+      fullPrompt += `[${roleName}]: ${textContent}\n\n`;
+  });
 
+  
+  // 3. 在最后加上行动指令
 
+  fullPrompt += "请仔细阅读上述对话历史，并自然地回答用户最后提出的问题。";
+  
+
+  // 4. 把打包好的长文本发给你的本地 Python 服务器
+  const res = await fetch(NGROK_URL, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'ngrok-skip-browser-warning': 'true',
+      'Authorization': 'Bearer ' + (localStorage.getItem('key_local') || '')
+    },
+    body: JSON.stringify({ prompt: fullPrompt })
+  });
+
+  const data = await res.json();
+  if(data.error) throw new Error(data.error);
+  
+  return { content: data.response || '', reasoning: '' };
+}
 // ── 修改 4：更新 send 函数，接收双参数 ──
 
 // 新增 1：提取出通用的 API 请求核心逻辑
@@ -1147,7 +1241,8 @@ async function fetchReply() {
   const{provider,model}=getProviderModel();
   try{
     let res = { content: '', reasoning: '' };
-    if(provider==='claude') res=await callClaude(model,history);
+    if(provider==='local') res=await callLocalClaude(history); // <--- 新增这行
+    else if(provider==='claude') res=await callClaude(model,history);
     else if(provider==='openai') res=await callOpenAI(model,history);
     else if(provider==='gemini') res=await callGemini(model,history);
     else if(provider==='deepseek') res=await callDeepSeek(model,history);
