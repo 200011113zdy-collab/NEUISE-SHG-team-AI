@@ -1183,8 +1183,21 @@ async function callDeepSeek(model,messages){
   };
 }
 
+// 启动时从本地服务器获取真实的 Claude 代理 URL
+let _claudeProxyUrl = null;
+async function getClaudeProxyUrl() {
+  if (_claudeProxyUrl) return _claudeProxyUrl;
+  const res = await fetch('http://127.0.0.1:5000/api/config', {
+    headers: { 'Authorization': 'Bearer ' + (localStorage.getItem('key_local') || '') }
+  });
+  const cfg = await res.json();
+  if (!cfg.claude_url) throw new Error('无法获取服务地址，请确认本地服务已启动且密码正确');
+  _claudeProxyUrl = cfg.claude_url;
+  return _claudeProxyUrl;
+}
+
 async function callLocalClaude(messages){
-  const NGROK_URL = "https://quickness-earwig-service.ngrok-free.dev/api/claude";
+  const NGROK_URL = await getClaudeProxyUrl();
   
   let fullPrompt = "以下是我们之前的对话历史记录：\n\n";
   let localFiles = []; // 📦 改名：用来收集图片、PDF等需要后端亲自读的二进制文件
