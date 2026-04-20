@@ -260,6 +260,12 @@
   .katex-block{overflow-x:auto;padding:6px 0;text-align:center}
 .mermaid-wrap{background:var(--white);border:1px solid var(--border);border-radius:8px;padding:12px;margin:10px 0;overflow-x:auto}
   .code-wrap{position:relative;margin:10px 0}
+  /* ── 文件下载块 ── */
+  .file-download-block{display:inline-flex;align-items:center;gap:8px;padding:8px 12px;background:var(--bg);border:1px solid var(--border);border-radius:10px;margin:8px 0;font-size:13px}
+  .file-dl-icon{font-size:16px;flex-shrink:0}
+  .file-dl-name{color:var(--text);font-weight:500;flex:1}
+  .file-dl-btn{padding:4px 12px;background:var(--accent);color:#fff !important;border-radius:6px;font-size:12px;text-decoration:none !important;font-weight:500;white-space:nowrap;transition:opacity 0.15s}
+  .file-dl-btn:hover{opacity:0.85}
   .code-toolbar{position:absolute;top:6px;right:6px;display:flex;gap:4px;opacity:0;transition:opacity 0.15s}
   .code-wrap:hover .code-toolbar{opacity:1}
   .code-tool-btn{background:var(--bg);border:1px solid var(--border);border-radius:5px;padding:3px 8px;font-size:11px;color:var(--muted);cursor:pointer;font-family:inherit}
@@ -898,6 +904,17 @@ function renderMsg(role,text){
 }
 
 function renderMarkdown(text){
+  // ── 解析 <file name="..."> 标签，渲染为下载按钮 ──
+  text=text.replace(/<file\s+name="([^"]+)"[^>]*>([\s\S]*?)<\/file>/g,(_,name,content)=>{
+    const clean=content.trim();
+    const ext=name.split('.').pop()||'txt';
+    const mimeMap={py:'text/plain',js:'text/javascript',html:'text/html',css:'text/css',
+      ts:'text/typescript',json:'application/json',csv:'text/csv',md:'text/markdown',
+      txt:'text/plain',sh:'text/plain',sql:'text/plain',xml:'text/xml'};
+    const mime=mimeMap[ext]||'text/plain';
+    const url='data:text/plain;charset=utf-8,'+encodeURIComponent(clean);
+    return `<div class="file-download-block"><span class="file-dl-icon">📄</span><span class="file-dl-name">${name}</span><a href="${url}" download="${name}" class="file-dl-btn">⬇ 下载</a></div>`;
+  });
   const mermaidBlocks=[];
   text=text.replace(/```mermaid\n([\s\S]+?)\n```/g,(_,c)=>{mermaidBlocks.push(c);return '%%MERMAID_'+(mermaidBlocks.length-1)+'%%';});
   const svgBlocks=[];
@@ -940,7 +957,7 @@ function renderMarkdown(text){
 }
 function dlCode(code,filename){
   const a=document.createElement('a');
-  a.href=URL.createObjectURL(new Blob([code],{type:'text/plain'}));
+  a.href='data:text/plain;charset=utf-8,'+encodeURIComponent(code);
   a.download=filename;a.click();
 }
 function runHtml(btn,code){
@@ -1124,7 +1141,7 @@ async function callClaude(model, messages) {
     model,
     max_tokens: 8192,
     temperature: params.temperature,
-    system: `你是一个专业、友善的AI助手，用简洁清晰的中文回答问题。你当前使用的模型是：${model}。`,
+    system: `你是一个专业、友善的AI助手，用简洁清晰的中文回答问题。你当前使用的模型是：${model}。\n当你需要输出可下载的文件（代码、文档、表格、配置等）时，请用以下格式包裹文件内容，前端会自动渲染为下载按钮：\n<file name="文件名.扩展名">\n文件内容\n</file>\n普通回复文字写在标签外面即可。`,
     messages: msgs
   };
   if (searchEnabled) {
@@ -1153,7 +1170,7 @@ async function callClaude(model, messages) {
 
 async function callOpenAI(model,messages){
   // OpenAI 不传 max_tokens，默认允许输出到模型极限
-  const body={model, temperature:params.temperature, messages:[{role:'system',content:`你是一个专业、友善的AI助手，用简洁清晰的中文回答问题。你当前使用的模型是：${model}。`},...toOpenAIMessages(messages)]};
+  const body={model, temperature:params.temperature, messages:[{role:'system',content:`你是一个专业、友善的AI助手，用简洁清晰的中文回答问题。你当前使用的模型是：${model}。\n当你需要输出可下载的文件（代码、文档、表格、配置等）时，请用以下格式包裹文件内容，前端会自动渲染为下载按钮：\n<file name="文件名.扩展名">\n文件内容\n</file>\n普通回复文字写在标签外面即可。`},...toOpenAIMessages(messages)]};
   if(searchEnabled) body.tools=[{type:'web_search_preview'}];
   const res=await fetch('https://api.openai.com/v1/chat/completions',{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+keys.openai},body:JSON.stringify(body)});
   const data=await res.json();
@@ -1173,7 +1190,7 @@ async function callGemini(model,messages){
 
 async function callDeepSeek(model,messages){
   // DeepSeek 最大支持 8192，强制指定最高值防止其默认截断
-  const body={model, max_tokens: 8192, temperature:params.temperature,messages:[{role:'system',content:`你是一个专业、友善的AI助手，用简洁清晰的中文回答问题。你当前使用的模型是：${model}。`},...toDeepSeekMessages(messages)]};
+  const body={model, max_tokens: 8192, temperature:params.temperature,messages:[{role:'system',content:`你是一个专业、友善的AI助手，用简洁清晰的中文回答问题。你当前使用的模型是：${model}。\n当你需要输出可下载的文件（代码、文档、表格、配置等）时，请用以下格式包裹文件内容，前端会自动渲染为下载按钮：\n<file name="文件名.扩展名">\n文件内容\n</file>\n普通回复文字写在标签外面即可。`},...toDeepSeekMessages(messages)]};
   const res=await fetch('https://api.deepseek.com/v1/chat/completions',{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+keys.deepseek},body:JSON.stringify(body)});
   const data=await res.json();
   if(data.error)throw new Error(data.error.message);
