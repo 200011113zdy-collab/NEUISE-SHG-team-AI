@@ -904,14 +904,49 @@ function renderMsg(role,text){
 }
 
 function renderMarkdown(text){
-  // ── 解析 <file name="..."> 标签，渲染为下载按钮 ──
+
+  // ── <xlsx name="..."> CSV内容 </xlsx> → 真正的 Excel 文件 ──
+  text=text.replace(/<xlsx\s+name="([^"]+)"[^>]*>([\s\S]*?)<\/xlsx>/g,(_,name,content)=>{
+    try{
+      const rows=content.trim().split('\n').map(r=>r.split(','));
+      const ws=XLSX.utils.aoa_to_sheet(rows);
+      const wb=XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(wb,ws,'Sheet1');
+      const b64=XLSX.write(wb,{bookType:'xlsx',type:'base64'});
+      const url='data:application/vnd.openxmlformats-officedocument.spreadsheetml.sheet;base64,'+b64;
+      return `<div class="file-download-block"><span class="file-dl-icon">📊</span><span class="file-dl-name">${name}</span><a href="${url}" download="${name}" class="file-dl-btn">⬇ 下载</a></div>`;
+    }catch(e){return `<div class="file-download-block"><span class="file-dl-icon">📊</span><span class="file-dl-name">${name}</span><span style="color:red;font-size:12px">xlsx生成失败</span></div>`;}
+  });
+
+  // ── <docx name="..."> 纯文本 </docx> → 真正的 Word 文件 ──
+  text=text.replace(/<docx\s+name="([^"]+)"[^>]*>([\s\S]*?)<\/docx>/g,(_,name,content)=>{
+    try{
+      const lines=content.trim().split('\n');
+      const paras=lines.map(l=>{
+        const esc=l.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+        return `<w:p><w:r><w:t xml:space="preserve">${esc}</w:t></w:r></w:p>`;
+      }).join('');
+      const docXml=`<?xml version="1.0" encoding="UTF-8" standalone="yes"?><w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main"><w:body>${paras}<w:sectPr/></w:body></w:document>`;
+      const relsXml=`<?xml version="1.0" encoding="UTF-8"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"></Relationships>`;
+      const ctXml=`<?xml version="1.0" encoding="UTF-8"?><Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types"><Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/><Default Extension="xml" ContentType="application/xml"/><Override PartName="/word/document.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.document.main+xml"/></Types>`;
+      const zip=new JSZip();
+      zip.file('[Content_Types].xml',ctXml);
+      zip.folder('_rels').file('.rels',relsXml);
+      zip.folder('word').file('document.xml',docXml);
+      zip.folder('word/_rels').file('document.xml.rels',relsXml);
+      const dlId='docx_dl_'+Math.random().toString(36).slice(2);
+      setTimeout(async()=>{
+        const blob=await zip.generateAsync({type:'blob'});
+        const a=document.getElementById(dlId);
+        if(a){a.href=URL.createObjectURL(blob);a.removeAttribute('disabled');}
+      },0);
+      return `<div class="file-download-block"><span class="file-dl-icon">📝</span><span class="file-dl-name">${name}</span><a id="${dlId}" download="${name}" class="file-dl-btn" disabled>⬇ 下载</a></div>`;
+    }catch(e){return `<div class="file-download-block"><span class="file-dl-icon">📝</span><span class="file-dl-name">${name}</span><span style="color:red;font-size:12px">docx生成失败</span></div>`;}
+  });
+
+  // ── <file name="..."> 文本内容 </file> → 纯文本下载 ──
   text=text.replace(/<file\s+name="([^"]+)"[^>]*>([\s\S]*?)<\/file>/g,(_,name,content)=>{
     const clean=content.trim();
-    const ext=name.split('.').pop()||'txt';
-    const mimeMap={py:'text/plain',js:'text/javascript',html:'text/html',css:'text/css',
-      ts:'text/typescript',json:'application/json',csv:'text/csv',md:'text/markdown',
-      txt:'text/plain',sh:'text/plain',sql:'text/plain',xml:'text/xml'};
-    const mime=mimeMap[ext]||'text/plain';
     const url='data:text/plain;charset=utf-8,'+encodeURIComponent(clean);
     return `<div class="file-download-block"><span class="file-dl-icon">📄</span><span class="file-dl-name">${name}</span><a href="${url}" download="${name}" class="file-dl-btn">⬇ 下载</a></div>`;
   });
@@ -1141,7 +1176,7 @@ async function callClaude(model, messages) {
     model,
     max_tokens: 8192,
     temperature: params.temperature,
-    system: `你是一个专业、友善的AI助手，用简洁清晰的中文回答问题。你当前使用的模型是：${model}。\n当你需要输出可下载的文件（代码、文档、表格、配置等）时，请用以下格式包裹文件内容，前端会自动渲染为下载按钮：\n<file name="文件名.扩展名">\n文件内容\n</file>\n普通回复文字写在标签外面即可。`,
+    system: `你是一个专业、友善的AI助手，用简洁清晰的中文回答问题。你当前使用的模型是：${model}。\n当你需要输出可下载的文件时，请根据类型使用对应标签，前端会自动渲染为下载按钮：\n• 代码/文本类（.py .js .txt .md .csv .json等）：\n<file name="文件名.扩展名">\n文件内容\n</file>\n• Excel表格（.xlsx）：用CSV格式写内容，前端自动转换：\n<xlsx name="表格.xlsx">\n列1,列2,列3\n值1,值2,值3\n</xlsx>\n• Word文档（.docx）：写纯文本内容，前端自动转换：\n<docx name="文档.docx">\n文档内容\n</docx>\n普通回复文字写在标签外面即可。不要同时用多种标签嵌套。`,
     messages: msgs
   };
   if (searchEnabled) {
@@ -1170,7 +1205,7 @@ async function callClaude(model, messages) {
 
 async function callOpenAI(model,messages){
   // OpenAI 不传 max_tokens，默认允许输出到模型极限
-  const body={model, temperature:params.temperature, messages:[{role:'system',content:`你是一个专业、友善的AI助手，用简洁清晰的中文回答问题。你当前使用的模型是：${model}。\n当你需要输出可下载的文件（代码、文档、表格、配置等）时，请用以下格式包裹文件内容，前端会自动渲染为下载按钮：\n<file name="文件名.扩展名">\n文件内容\n</file>\n普通回复文字写在标签外面即可。`},...toOpenAIMessages(messages)]};
+  const body={model, temperature:params.temperature, messages:[{role:'system',content:`你是一个专业、友善的AI助手，用简洁清晰的中文回答问题。你当前使用的模型是：${model}。\n当你需要输出可下载的文件时，请根据类型使用对应标签，前端会自动渲染为下载按钮：\n• 代码/文本类（.py .js .txt .md .csv .json等）：\n<file name="文件名.扩展名">\n文件内容\n</file>\n• Excel表格（.xlsx）：用CSV格式写内容，前端自动转换：\n<xlsx name="表格.xlsx">\n列1,列2,列3\n值1,值2,值3\n</xlsx>\n• Word文档（.docx）：写纯文本内容，前端自动转换：\n<docx name="文档.docx">\n文档内容\n</docx>\n普通回复文字写在标签外面即可。不要同时用多种标签嵌套。`},...toOpenAIMessages(messages)]};
   if(searchEnabled) body.tools=[{type:'web_search_preview'}];
   const res=await fetch('https://api.openai.com/v1/chat/completions',{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+keys.openai},body:JSON.stringify(body)});
   const data=await res.json();
@@ -1190,7 +1225,7 @@ async function callGemini(model,messages){
 
 async function callDeepSeek(model,messages){
   // DeepSeek 最大支持 8192，强制指定最高值防止其默认截断
-  const body={model, max_tokens: 8192, temperature:params.temperature,messages:[{role:'system',content:`你是一个专业、友善的AI助手，用简洁清晰的中文回答问题。你当前使用的模型是：${model}。\n当你需要输出可下载的文件（代码、文档、表格、配置等）时，请用以下格式包裹文件内容，前端会自动渲染为下载按钮：\n<file name="文件名.扩展名">\n文件内容\n</file>\n普通回复文字写在标签外面即可。`},...toDeepSeekMessages(messages)]};
+  const body={model, max_tokens: 8192, temperature:params.temperature,messages:[{role:'system',content:`你是一个专业、友善的AI助手，用简洁清晰的中文回答问题。你当前使用的模型是：${model}。\n当你需要输出可下载的文件时，请根据类型使用对应标签，前端会自动渲染为下载按钮：\n• 代码/文本类（.py .js .txt .md .csv .json等）：\n<file name="文件名.扩展名">\n文件内容\n</file>\n• Excel表格（.xlsx）：用CSV格式写内容，前端自动转换：\n<xlsx name="表格.xlsx">\n列1,列2,列3\n值1,值2,值3\n</xlsx>\n• Word文档（.docx）：写纯文本内容，前端自动转换：\n<docx name="文档.docx">\n文档内容\n</docx>\n普通回复文字写在标签外面即可。不要同时用多种标签嵌套。`},...toDeepSeekMessages(messages)]};
   const res=await fetch('https://api.deepseek.com/v1/chat/completions',{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+keys.deepseek},body:JSON.stringify(body)});
   const data=await res.json();
   if(data.error)throw new Error(data.error.message);
