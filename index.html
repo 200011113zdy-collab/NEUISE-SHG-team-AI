@@ -1299,8 +1299,28 @@ async function callLocalClaude(messages){
 
   const data = await res.json();
   if(data.error) throw new Error(data.error);
-  
-  return { content: data.response || '', reasoning: '' };
+
+  // 📦 处理二进制文件（docx/pptx/xlsx等），拼成下载按钮追加到回复末尾
+  const MIME_MAP = {
+    docx: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+    pptx: 'application/vnd.openxmlformats-officedocument.presentationml.presentation',
+    xlsx: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+    pdf:  'application/pdf',
+    zip:  'application/zip',
+    png:  'image/png',
+    jpg:  'image/jpeg',
+  };
+  const ICON_MAP = { docx:'📝', pptx:'📊', xlsx:'📊', pdf:'📄', zip:'🗜️', png:'🖼️', jpg:'🖼️' };
+  let binaryBlocks = '';
+  for(const f of (data.binary_files || [])){
+    const ext = f.name.split('.').pop().toLowerCase();
+    const mime = MIME_MAP[ext] || 'application/octet-stream';
+    const icon = ICON_MAP[ext] || '📄';
+    const url = `data:${mime};base64,${f.data}`;
+    binaryBlocks += `<div class="file-download-block"><span class="file-dl-icon">${icon}</span><span class="file-dl-name">${f.name}</span><a href="${url}" download="${f.name}" class="file-dl-btn">⬇ 下载</a></div>`;
+  }
+
+  return { content: (data.response || '') + (binaryBlocks ? '\n\n' + binaryBlocks : ''), reasoning: '' };
 }
 
 // ── 修改 4：更新 send 函数，接收双参数 ──
