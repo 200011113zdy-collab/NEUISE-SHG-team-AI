@@ -345,10 +345,13 @@
     </div>
 
     <div class="key-section" id="tab-local">
-      <div class="field-label">本地服务访问密码</div>
+      <div class="field-label">服务地址</div>
+      <input class="modal-input" id="local-server-url" type="text" placeholder="https://xxxx.ngrok-free.app/api/claude">
+      <div class="model-note" style="margin-bottom:12px">填写服务提供者给你的地址（每次服务重启地址可能变化）。</div>
+      <div class="field-label">访问密码</div>
       <input class="modal-input" id="key-local" type="password" placeholder="输入专属密码">
       <div class="key-status" id="st-local"></div>
-      <div class="model-note">请输入专属密码连接本地 Claude 服务。</div>
+      <div class="model-note">密码和地址缺一不可，只保存在你自己的浏览器里。</div>
     </div>
 
     <div class="params-section">
@@ -718,6 +721,7 @@ function openKeys(){
     document.getElementById('st-'+p).textContent=keys[p]?'✓ 已配置':'未配置';
     document.getElementById('st-'+p).className='key-status'+(keys[p]?' ok':'');
   });
+  document.getElementById('local-server-url').value=localStorage.getItem('local_server_url')||'';
   document.getElementById('paramTemp').value=params.temperature;
   document.getElementById('tempVal').textContent=params.temperature;
   document.getElementById('paramMaxTokens').value=params.maxTokens;
@@ -742,6 +746,11 @@ function saveKeys() {
       localStorage.setItem('key_' + p, v);
     }
   });
+
+  // 保存本地服务地址
+  const serverUrl = document.getElementById('local-server-url').value.trim();
+  localStorage.setItem('local_server_url', serverUrl);
+  _claudeProxyUrl = null; // 地址变了，清除缓存
 
   // 保存其他模型参数
   params.temperature = parseFloat(document.getElementById('paramTemp').value);
@@ -1235,15 +1244,23 @@ async function callDeepSeek(model,messages){
   };
 }
 
-// 启动时从本地服务器获取真实的 Claude 代理 URL
+// 从用户填写的地址获取真实的 Claude 代理 URL
 let _claudeProxyUrl = null;
 async function getClaudeProxyUrl() {
   if (_claudeProxyUrl) return _claudeProxyUrl;
-  const res = await fetch('http://127.0.0.1:5000/api/config', {
-    headers: { 'Authorization': 'Bearer ' + (localStorage.getItem('key_local') || '') }
+  const serverUrl = localStorage.getItem('local_server_url') || '';
+  if (!serverUrl) throw new Error('请在设置 → 本地服务Claude 中填写服务地址');
+  // 兼容用户填的是 /api/claude 结尾或只填了域名的情况
+  const baseUrl = serverUrl.replace(/\/api\/claude\/?$/, '');
+  const configUrl = baseUrl + '/api/config';
+  const res = await fetch(configUrl, {
+    headers: {
+      'Authorization': 'Bearer ' + (localStorage.getItem('key_local') || ''),
+      'ngrok-skip-browser-warning': 'true'
+    }
   });
   const cfg = await res.json();
-  if (!cfg.claude_url) throw new Error('无法获取服务地址，请确认本地服务已启动且密码正确');
+  if (!cfg.claude_url) throw new Error('无法获取服务地址，请确认地址和密码是否正确');
   _claudeProxyUrl = cfg.claude_url;
   return _claudeProxyUrl;
 }
