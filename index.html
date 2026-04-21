@@ -346,8 +346,8 @@
 
     <div class="key-section" id="tab-local">
       <div class="field-label">服务地址</div>
-      <input class="modal-input" id="local-server-url" type="text" placeholder="https://xxxx.ngrok-free.app/api/claude">
-      <div class="model-note" style="margin-bottom:12px">填写服务提供者给你的地址。</div>
+      <input class="modal-input" id="local-server-url" type="text" placeholder="https://xxxx.ngrok-free.app">
+      <div class="model-note" style="margin-bottom:12px">只填域名部分即可，例如 <code>https://xxxx.ngrok-free.app</code>，无需加 /api/... 后缀。</div>
       <div class="field-label">访问密码</div>
       <input class="modal-input" id="key-local" type="password" placeholder="输入专属密码">
       <div class="key-status" id="st-local"></div>
@@ -411,7 +411,18 @@
 <div class="main">
   <div class="topbar">
     <div class="topbar-title" id="topbarTitle">新对话</div>
-    <div id="balanceBadge" class="balance-badge" title="当前所选 API 账户余额"></div>
+    <div id="balanceBadge" class="balance-badge"></div>
+    <div id="usageHint" style="display:none;align-items:center;margin-left:2px">
+      <span style="cursor:help;font-size:12px;color:var(--muted);opacity:0.6;position:relative" id="usageHintIcon" onmouseenter="showUsageTip(true)" onmouseleave="showUsageTip(false)">?
+        <span id="usageTip" style="display:none;position:absolute;top:22px;right:0;width:240px;background:#333;color:#fff;font-size:12px;line-height:1.8;padding:10px 12px;border-radius:8px;z-index:999;pointer-events:none;white-space:normal">
+          <b>5h 窗口</b>：每5小时滚动重置<br>
+          <span id="tip5hReset" style="opacity:0.75;font-size:11px"></span>
+          <br><b>7d 窗口</b>：每7天累计用量<br>
+          <span id="tip7dReset" style="opacity:0.75;font-size:11px"></span>
+          <br><span style="opacity:0.6">🟢&lt;50%&nbsp;·&nbsp;🟡50~80%&nbsp;·&nbsp;🔴80%+</span>
+        </span>
+      </span>
+    </div>
     <div class="model-select-wrap">
       <div class="provider-dot" id="providerDot" style="background:#c96a3b"></div>
       <select class="model-select" id="modelSelect" onchange="onModelChange()">
@@ -655,18 +666,118 @@ const CONSOLE_URLS={
   deepseek:'https://platform.deepseek.com/usage'
 };
 
+function showUsageTip(show) {
+  document.getElementById('usageTip').style.display = show ? 'block' : 'none';
+}
+
+// ── 本地 Claude Code 账号用量查询 ──
+let _usageCache = null;
+let _usageCacheTime = 0;
+const USAGE_CACHE_TTL = 3 * 60 * 1000; // 3分钟缓存，避免频繁调用
+
+async function fetchLocalUsage(badge) {
+  try {
+    // 先取缓存
+    if (_usageCache && Date.now() - _usageCacheTime < USAGE_CACHE_TTL) {
+      renderUsageBadge(badge, _usageCache);
+      return;
+    }
+
+    const serverUrl = (localStorage.getItem('local_server_url') || '').replace(/\/(api\/(claude|config))\/?$/, '');
+    if (!serverUrl) {
+      badge.className = 'balance-badge show warn';
+      badge.innerHTML = '⚠ 请先在设置中填写服务地址';
+      return;
+    }
+
+    const res = await fetch(serverUrl + '/api/usage', {
+      headers: {
+        'Authorization': 'Bearer ' + (localStorage.getItem('key_local') || ''),
+        'ngrok-skip-browser-warning': 'true'
+      }
+    });
+    const data = await res.json();
+    if (data.error) throw new Error(data.error);
+
+    _usageCache = data;
+    _usageCacheTime = Date.now();
+    renderUsageBadge(badge, data);
+
+  } catch(e) {
+    badge.className = 'balance-badge show err';
+    badge.innerHTML = `⚠ 用量获取失败`;
+  }
+}
+
+function renderUsageBadge(badge, data) {
+  document.getElementById('usageHint').style.display = 'flex';
+  const fh = data.five_hour;
+  const sd = data.seven_day;
+  if (!fh) {
+    badge.className = 'balance-badge show warn';
+    badge.innerHTML = '⚠ 暂无用量数据';
+    return;
+  }
+  const pct5h = Math.round(fh.utilization || 0);
+  const pct7d = sd ? Math.round(sd.utilization || 0) : null;
+
+  // 重置倒计时
+  function timeLeft(resetAt) {
+    if (!resetAt) return '';
+    const diff = new Date(resetAt) - new Date();
+    if (diff <= 0) return '即将重置';
+    const h = Math.floor(diff / 3600000);
+    const m = Math.floor((diff % 3600000) / 60000);
+    return h > 0 ? `${h}h${m}m后重置` : `${m}m后重置`;
+  }
+
+  // 格式化具体时刻
+  function resetWallClock(resetAt) {
+    if (!resetAt) return '';
+    const d = new Date(resetAt);
+    const mm = String(d.getMonth()+1).padStart(2,'0');
+    const dd = String(d.getDate()).padStart(2,'0');
+    const hh = String(d.getHours()).padStart(2,'0');
+    const min = String(d.getMinutes()).padStart(2,'0');
+    return `重置于 ${mm}/${dd} ${hh}:${min}`;
+  }
+
+  // 更新 tooltip 里的重置时间
+  const el5h = document.getElementById('tip5hReset');
+  const el7d = document.getElementById('tip7dReset');
+  if (el5h) el5h.textContent = fh.resets_at ? `${timeLeft(fh.resets_at)}（${resetWallClock(fh.resets_at)}）` : '';
+  if (el7d) el7d.textContent = sd?.resets_at ? `${timeLeft(sd.resets_at)}（${resetWallClock(sd.resets_at)}）` : '暂无数据';
+
+  const color = pct5h >= 80 ? 'err' : pct5h >= 50 ? 'warn' : 'ok';
+  badge.className = `balance-badge show ${color}`;
+
+  const bar = (pct) => {
+    const filled = Math.round(pct / 10);
+    return '█'.repeat(filled) + '░'.repeat(10 - filled);
+  };
+
+  let html = `📊 5h: ${bar(pct5h)} ${pct5h}% <span style="font-size:10px;opacity:0.7">${timeLeft(fh.resets_at)}</span>`;
+  if (pct7d !== null) {
+    const color7d = pct7d >= 80 ? '#e05050' : pct7d >= 50 ? '#a07020' : 'inherit';
+    html += `&nbsp;&nbsp;|&nbsp;&nbsp;7d: <span style="color:${color7d}">${pct7d}%</span> <span style="font-size:10px;opacity:0.7">${timeLeft(sd.resets_at)}</span>`;
+  }
+  badge.innerHTML = html;
+}
+
 async function fetchBalance(provider){
   const badge = document.getElementById('balanceBadge');
   const key = keys[provider];
 
-  // 1. 如果是本地模式，直接显示跳转官网的链接，不需要 Key 校验
+  // 1. 本地模式：查询真实用量
   if (provider === 'local') {
-    badge.className = 'balance-badge show ok'; // 绿色外观，代表连接正常
-    badge.innerHTML = `💬 <a href="https://claude.ai/chats" target="_blank">前往 Claude 官网 ↗</a>`;
+    badge.className = 'balance-badge show';
+    badge.innerHTML = '📊 查询用量…';
+    fetchLocalUsage(badge);
     return;
   }
 
   // 2. 没有 Key 就隐藏 (针对其他 API 模式)
+  document.getElementById('usageHint').style.display = 'none';
   if(!key){
     badge.className = 'balance-badge';
     badge.textContent = '';
@@ -1250,8 +1361,8 @@ async function getClaudeProxyUrl() {
   if (_claudeProxyUrl) return _claudeProxyUrl;
   const serverUrl = localStorage.getItem('local_server_url') || '';
   if (!serverUrl) throw new Error('请在设置 → 本地服务Claude 中填写服务地址');
-  // 兼容用户填的是 /api/claude 结尾或只填了域名的情况
-  const baseUrl = serverUrl.replace(/\/api\/claude\/?$/, '');
+  // 兼容用户填任意后缀：/api/claude、/api/config、或纯域名
+  const baseUrl = serverUrl.replace(/\/(api\/(claude|config))\/?$/, '');
   const configUrl = baseUrl + '/api/config';
   const res = await fetch(configUrl, {
     headers: {
