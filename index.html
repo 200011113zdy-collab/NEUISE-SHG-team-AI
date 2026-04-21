@@ -1304,26 +1304,52 @@ async function callLocalClaude(messages){
 
   if(!res.ok) throw new Error('请求失败: ' + res.status);
 
-  // 找到当前 AI 气泡，插入实时进度面板
-  const bubbles = document.querySelectorAll('.bubble.ai');
-  const currentBubble = bubbles[bubbles.length - 1];
+  // 在 typing bubble 里插入实时进度面板
+  const typingWrap = document.getElementById('typing-wrap');
+  const currentBubble = typingWrap ? typingWrap.querySelector('.bubble.ai') : null;
   let progressEl = null;
   let progressLines = [];
+  const progressId = 'progress-' + Date.now();
 
   if(currentBubble) {
+    currentBubble.innerHTML = '';
     progressEl = document.createElement('details');
     progressEl.className = 'reasoning-box';
     progressEl.open = true;
     progressEl.innerHTML = `
       <summary class="reasoning-summary">
         <svg width="12" height="12" viewBox="0 0 12 12"><path d="M4 2l4 4-4 4" stroke="currentColor" stroke-width="1.5" fill="none" stroke-linecap="round"/></svg>
-        <span id="progress-label">⚙️ Claude Code 执行中...</span>
+        <span id="${progressId}-label">⚙️ Claude Code 启动中...</span>
       </summary>
-      <div class="reasoning-content" id="progress-content" style="font-family:monospace;font-size:12px;"></div>
+      <div class="reasoning-content" id="${progressId}-content" style="font-family:monospace;font-size:12px;white-space:pre-wrap;"></div>
     `;
-    currentBubble.innerHTML = '';
     currentBubble.appendChild(progressEl);
   }
+
+  // ── 定时进度动画：每隔几秒显示一条有意义的步骤提示 ──
+  const STEPS = [
+    [1,  '📖 正在读取对话历史...'],
+    [4,  '🧠 正在分析任务需求...'],
+    [8,  '⚙️  正在规划执行步骤...'],
+    [14, '🔨 正在执行主要任务...'],
+    [25, '📝 正在生成文件内容...'],
+    [40, '🔍 正在检查和优化...'],
+    [55, '📦 正在保存文件...'],
+    [70, '🗂️  正在归档整理...'],
+    [85, '⏳ 即将完成，请稍候...'],
+  ];
+  const stepTimers = [];
+  const startTime = Date.now();
+  STEPS.forEach(([sec, msg]) => {
+    const t = setTimeout(() => {
+      const el = document.getElementById(progressId+'-content');
+      const label = document.getElementById(progressId+'-label');
+      if(el) el.textContent += msg + '\n';
+      if(label) label.textContent = msg;
+      if(el) el.scrollTop = el.scrollHeight;
+    }, sec * 1000);
+    stepTimers.push(t);
+  });
 
   // 逐行读取 SSE 流
   const reader = res.body.getReader();
@@ -1345,7 +1371,7 @@ async function callLocalClaude(messages){
         if(msg.type === 'progress') {
           progressLines.push(msg.text);
           if(progressEl) {
-            const el = document.getElementById('progress-content');
+            const el = document.getElementById(progressId+'-content');
             if(el) {
               el.textContent += msg.text;
               el.scrollTop = el.scrollHeight;
@@ -1361,12 +1387,26 @@ async function callLocalClaude(messages){
   if(!finalData) throw new Error('未收到最终响应');
   if(finalData.error) throw new Error(finalData.error);
 
-  // 折叠进度面板，标题改为"已完成"
+  // 清除所有定时器，停止动画
+  stepTimers.forEach(t => clearTimeout(t));
+  const elapsed = ((Date.now() - startTime) / 1000).toFixed(1);
+
+  // 把真实的 Claude Code 输出追加到进度内容里
+  if(progressLines.length > 0) {
+    const el = document.getElementById(progressId+'-content');
+    if(el) {
+      el.textContent += '\n── Claude Code 输出 ──\n' + progressLines.join('');
+      el.scrollTop = el.scrollHeight;
+    }
+  }
+
+  // 折叠面板，更新标题
   if(progressEl) {
     progressEl.open = false;
-    const label = document.getElementById('progress-label');
-    if(label) label.textContent = '✅ 执行完成（点击展开查看过程）';
+    const label = document.getElementById(progressId+'-label');
+    if(label) label.textContent = `✅ 执行完成（耗时 ${elapsed}s，点击展开查看过程）`;
   }
+  const progressText = (document.getElementById(progressId+'-content') || {}).textContent || progressLines.join('');
 
   // 处理二进制文件下载按钮
   const MIME_MAP = {
@@ -1388,7 +1428,7 @@ async function callLocalClaude(messages){
     binaryBlocks += `<div class="file-download-block"><span class="file-dl-icon">${icon}</span><span class="file-dl-name">${f.name}</span><a href="${url}" download="${f.name}" class="file-dl-btn">⬇ 下载</a></div>`;
   }
 
-  return { content: (finalData.response || '') + (binaryBlocks ? '\n\n' + binaryBlocks : ''), reasoning: '' };
+  return { content: (finalData.response || '') + (binaryBlocks ? '\n\n' + binaryBlocks : ''), reasoning: progressText };
 }
 
 // ── 修改 4：更新 send 函数，接收双参数 ──
@@ -1398,14 +1438,20 @@ async function fetchReply() {
   const{provider,model}=getProviderModel();
   try{
     let res = { content: '', reasoning: '' };
-    if(provider==='local') res=await callLocalClaude(history); // <--- 新增这行
-    else if(provider==='claude') res=await callClaude(model,history);
-    else if(provider==='openai') res=await callOpenAI(model,history);
-    else if(provider==='gemini') res=await callGemini(model,history);
-    else if(provider==='deepseek') res=await callDeepSeek(model,history);
-    
-    removeTyping();
-    addMsg('ai', res.content, null, res.reasoning);
+    if(provider==='local'){
+      // local 通道：callLocalClaude 会直接在 typing bubble 里实时显示进度
+      // 完成后我们保留那个 bubble，只把最终内容追加进去，不重建
+      res = await callLocalClaude(history);
+      removeTyping(); // 移除 typing wrap（callLocalClaude 用的是里面的 bubble，已被改造）
+      addMsg('ai', res.content, null, res.reasoning);
+    } else {
+      if(provider==='claude') res=await callClaude(model,history);
+      else if(provider==='openai') res=await callOpenAI(model,history);
+      else if(provider==='gemini') res=await callGemini(model,history);
+      else if(provider==='deepseek') res=await callDeepSeek(model,history);
+      removeTyping();
+      addMsg('ai', res.content, null, res.reasoning);
+    }
     setTimeout(renderMermaid, 200);
     history.push({role:'assistant', content:res.content, reasoning:res.reasoning}); 
     saveCurrentSession();
