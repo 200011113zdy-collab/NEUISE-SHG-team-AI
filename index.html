@@ -1282,7 +1282,7 @@ async function callLocalClaude(messages){
   
   fullPrompt += "请仔细阅读上述对话历史，并自然地回答用户最后提出的问题。";
 
-  // 前端超时设为10分钟，匹配服务器端，避免复杂任务被浏览器提前断开
+  // ── 流式 SSE 接收，实时展示 Claude Code 执行过程 ──
   const controller = new AbortController();
   const timeoutId = setTimeout(() => controller.abort(), 600000);
 
@@ -1294,17 +1294,81 @@ async function callLocalClaude(messages){
       'ngrok-skip-browser-warning': 'true',
       'Authorization': 'Bearer ' + (localStorage.getItem('key_local') || '')
     },
-    body: JSON.stringify({ 
-        prompt: fullPrompt, 
-        files: localFiles, 
-        search_enabled: typeof searchEnabled !== 'undefined' ? searchEnabled : false
+    body: JSON.stringify({
+      prompt: fullPrompt,
+      files: localFiles,
+      search_enabled: typeof searchEnabled !== 'undefined' ? searchEnabled : false
     })
-  }).finally(() => clearTimeout(timeoutId));
+  });
+  clearTimeout(timeoutId);
 
-  const data = await res.json();
-  if(data.error) throw new Error(data.error);
+  if(!res.ok) throw new Error('请求失败: ' + res.status);
 
-  // 📦 处理二进制文件（docx/pptx/xlsx等），拼成下载按钮追加到回复末尾
+  // 找到当前 AI 气泡，插入实时进度面板
+  const bubbles = document.querySelectorAll('.bubble.ai');
+  const currentBubble = bubbles[bubbles.length - 1];
+  let progressEl = null;
+  let progressLines = [];
+
+  if(currentBubble) {
+    progressEl = document.createElement('details');
+    progressEl.className = 'reasoning-box';
+    progressEl.open = true;
+    progressEl.innerHTML = `
+      <summary class="reasoning-summary">
+        <svg width="12" height="12" viewBox="0 0 12 12"><path d="M4 2l4 4-4 4" stroke="currentColor" stroke-width="1.5" fill="none" stroke-linecap="round"/></svg>
+        <span id="progress-label">⚙️ Claude Code 执行中...</span>
+      </summary>
+      <div class="reasoning-content" id="progress-content" style="font-family:monospace;font-size:12px;"></div>
+    `;
+    currentBubble.innerHTML = '';
+    currentBubble.appendChild(progressEl);
+  }
+
+  // 逐行读取 SSE 流
+  const reader = res.body.getReader();
+  const decoder = new TextDecoder();
+  let buffer = '';
+  let finalData = null;
+
+  while(true) {
+    const { done, value } = await reader.read();
+    if(done) break;
+    buffer += decoder.decode(value, { stream: true });
+    const lines = buffer.split('\n');
+    buffer = lines.pop(); // 保留未完整的行
+
+    for(const line of lines) {
+      if(!line.startsWith('data: ')) continue;
+      try {
+        const msg = JSON.parse(line.slice(6));
+        if(msg.type === 'progress') {
+          progressLines.push(msg.text);
+          if(progressEl) {
+            const el = document.getElementById('progress-content');
+            if(el) {
+              el.textContent += msg.text;
+              el.scrollTop = el.scrollHeight;
+            }
+          }
+        } else if(msg.type === 'done') {
+          finalData = msg;
+        }
+      } catch(e) {}
+    }
+  }
+
+  if(!finalData) throw new Error('未收到最终响应');
+  if(finalData.error) throw new Error(finalData.error);
+
+  // 折叠进度面板，标题改为"已完成"
+  if(progressEl) {
+    progressEl.open = false;
+    const label = document.getElementById('progress-label');
+    if(label) label.textContent = '✅ 执行完成（点击展开查看过程）';
+  }
+
+  // 处理二进制文件下载按钮
   const MIME_MAP = {
     docx: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
     pptx: 'application/vnd.openxmlformats-officedocument.presentationml.presentation',
@@ -1316,7 +1380,7 @@ async function callLocalClaude(messages){
   };
   const ICON_MAP = { docx:'📝', pptx:'📊', xlsx:'📊', pdf:'📄', zip:'🗜️', png:'🖼️', jpg:'🖼️' };
   let binaryBlocks = '';
-  for(const f of (data.binary_files || [])){
+  for(const f of (finalData.binary_files || [])){
     const ext = f.name.split('.').pop().toLowerCase();
     const mime = MIME_MAP[ext] || 'application/octet-stream';
     const icon = ICON_MAP[ext] || '📄';
@@ -1324,7 +1388,7 @@ async function callLocalClaude(messages){
     binaryBlocks += `<div class="file-download-block"><span class="file-dl-icon">${icon}</span><span class="file-dl-name">${f.name}</span><a href="${url}" download="${f.name}" class="file-dl-btn">⬇ 下载</a></div>`;
   }
 
-  return { content: (data.response || '') + (binaryBlocks ? '\n\n' + binaryBlocks : ''), reasoning: '' };
+  return { content: (finalData.response || '') + (binaryBlocks ? '\n\n' + binaryBlocks : ''), reasoning: '' };
 }
 
 // ── 修改 4：更新 send 函数，接收双参数 ──
