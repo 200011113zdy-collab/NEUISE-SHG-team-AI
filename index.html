@@ -1394,7 +1394,7 @@ async function callLocalClaude(messages){
           m._files.forEach(f => {
               // 👇 核心改动：如果是图片或 PDF，提取 Base64 数据打包给后端
               if (f.kind === 'image' || f.kind === 'pdf') {
-                  localFiles.push({ name: f.name, data: f.data });
+                  localFiles.push({ name: f.name, data: f.data, type: f.type, kind: f.kind });
                   textContent = `【用户上传了文件：${f.name}】\n` + textContent;
               } 
               // 👇 Word/Excel/PPT/TXT 等，前端已经提取出文本了，直接塞进文字历史里
