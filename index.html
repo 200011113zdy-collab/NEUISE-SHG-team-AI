@@ -1161,6 +1161,24 @@ function addMsg(role, text, items, reasoning){
         d.innerHTML=renderMarkdown(text);
         bubble.appendChild(d);
       }
+      
+      // ✨ 新增：检测文件数量，超过1个则自动生成“一键打包”按钮
+      setTimeout(() => {
+        const fileLinks = bubble.querySelectorAll('.file-dl-btn');
+        if (fileLinks.length >= 2) {
+          const zipWrap = document.createElement('div');
+          zipWrap.style.cssText = 'margin-top:14px; padding-top:12px; border-top:1px dashed var(--border); display:flex; justify-content:flex-end;';
+          const zipBtn = document.createElement('button');
+          zipBtn.style.cssText = 'display:inline-flex; align-items:center; gap:6px; padding:6px 12px; background:var(--accent); color:#fff; border:none; border-radius:6px; cursor:pointer; font-size:12px; font-weight:500; transition:opacity 0.15s;';
+          zipBtn.onmouseover = () => zipBtn.style.opacity = '0.85';
+          zipBtn.onmouseout = () => zipBtn.style.opacity = '1';
+          zipBtn.innerHTML = '📦 一键打包下载全部 (.zip)';
+          zipBtn.onclick = () => downloadAllAsZip(zipBtn);
+          zipWrap.appendChild(zipBtn);
+          bubble.appendChild(zipWrap);
+        }
+      }, 100); // 延迟 100ms，等待前台的 Word 文档异步 Blob 构建完成
+
     }else{
       if(text){
         const p=document.createElement('p');
@@ -1957,6 +1975,68 @@ function renderMermaid(){
       el.innerHTML=svg;el.setAttribute('data-processed','true');
     }).catch(()=>{});
   });
+}
+// ── 📦 前端一键打包 ZIP 功能 ──
+async function downloadAllAsZip(btn) {
+  const bubble = btn.closest('.bubble');
+  // 抓取该气泡内所有有效的下载按钮（排除还在生成中的）
+  const links = Array.from(bubble.querySelectorAll('.file-dl-btn')).filter(a => !a.hasAttribute('disabled') && a.href);
+  if (links.length === 0) return;
+
+  const originalText = btn.innerHTML;
+  btn.innerHTML = '⏳ 正在压缩打包中...';
+  btn.style.pointerEvents = 'none';
+  btn.style.opacity = '0.7';
+
+  try {
+    const zip = new JSZip();
+    for (const link of links) {
+      const filename = link.getAttribute('download');
+      const href = link.getAttribute('href');
+
+      if (href.startsWith('blob:')) {
+        // 处理 Word 文档等以 Blob 对象 URL 存在的格式
+        const response = await fetch(href);
+        const blob = await response.blob();
+        zip.file(filename, blob);
+      } else if (href.startsWith('data:')) {
+        // 处理纯文本或 Base64 的 Excel、图片等
+        const arr = href.split(',');
+        const isBase64 = arr[0].includes('base64');
+        const data = arr[1];
+        if (isBase64) {
+          zip.file(filename, data, {base64: true});
+        } else {
+          zip.file(filename, decodeURIComponent(data));
+        }
+      }
+    }
+
+    // 内存中生成 ZIP 文件并触发下载
+    const content = await zip.generateAsync({type: "blob"});
+    const dlLink = document.createElement('a');
+    dlLink.href = URL.createObjectURL(content);
+    
+    // 生成带时间戳的文件名
+    const d = new Date();
+    const timeStr = `${d.getFullYear()}${(d.getMonth()+1).toString().padStart(2,'0')}${d.getDate().toString().padStart(2,'0')}_${d.getHours().toString().padStart(2,'0')}${d.getMinutes().toString().padStart(2,'0')}`;
+    dlLink.download = `项目文件打包_${timeStr}.zip`;
+    
+    document.body.appendChild(dlLink);
+    dlLink.click();
+    document.body.removeChild(dlLink);
+
+  } catch (e) {
+    console.error("打包失败:", e);
+    alert("打包失败，请尝试逐个点击下载");
+  } finally {
+    btn.innerHTML = '✅ 打包完成！';
+    setTimeout(() => {
+      btn.innerHTML = originalText;
+      btn.style.pointerEvents = 'auto';
+      btn.style.opacity = '1';
+    }, 2000);
+  }
 }
 init();
 </script>
